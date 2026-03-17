@@ -14,6 +14,7 @@ import { UsageStore } from './usage/store.ts'
 import { createModelsHandler } from './handlers/models.ts'
 import { createStatusHandler } from './handlers/status.ts'
 import { createChatCompletionsHandler } from './handlers/chat-completions.ts'
+import { CopilotOAuth } from './auth/copilot.ts'
 
 export async function startServer(): Promise<void> {
   // ── Load config + DB ──────────────────────────────────────────────────
@@ -24,6 +25,9 @@ export async function startServer(): Promise<void> {
   const registry = new ModelRegistry(config)
   const providerRegistry = new ProviderRegistry()
   const credentialStore = new SqliteCredentialStore(db)
+
+  // ── Register OAuth providers ──────────────────────────────────────────
+  credentialStore.registerOAuthProvider('copilot', new CopilotOAuth(credentialStore))
   const lockStore = new LockStore(db)
   const routing = new DefaultRoutingStrategy(lockStore)
   const usageStore = new UsageStore(db)

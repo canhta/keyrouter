@@ -126,19 +126,32 @@ export function createChatCompletionsHandler(
       const headers = provider.requestHeaders(cred)
 
       // Make upstream request — propagate AbortController signal for client disconnect
+      // Also add a 60s timeout so hung connections don't block forever
       let response: Response
       try {
+        const timeoutSignal = AbortSignal.timeout(60_000)
+        const signal = AbortSignal.any
+          ? AbortSignal.any([c.req.raw.signal, timeoutSignal])
+          : c.req.raw.signal
         response = await fetch(upstreamUrl, {
           method: 'POST',
           headers,
           body: JSON.stringify(upstreamBody),
-          signal: c.req.raw.signal,
+          signal,
         })
       } catch (err) {
         // Network error / timeout / client disconnect
-        if ((err as Error).name === 'AbortError') {
-          // Client disconnected — don't retry
-          return new Response(null, { status: 499 })
+        if ((err as Error).name === 'AbortError' || (err as Error).name === 'TimeoutError') {
+          const isTimeout = (err as Error).name === 'TimeoutError'
+          if (!isTimeout) {
+            // Client disconnected — don't retry
+            return new Response(null, { status: 499 })
+          }
+          // Timeout — lock account + try next
+          console.warn(`[keyrouter] timeout for ${account.id}, locking`)
+          routing.onError(account.id, modelId, 0)
+          lastError = err as Error
+          continue
         }
         console.warn(`[keyrouter] fetch error for ${account.id}:`, err)
         routing.onError(account.id, modelId, 0)
