@@ -14,7 +14,9 @@ import { UsageStore } from './usage/store.ts'
 import { createModelsHandler } from './handlers/models.ts'
 import { createStatusHandler } from './handlers/status.ts'
 import { createChatCompletionsHandler } from './handlers/chat-completions.ts'
+import { createResponsesHandler } from './handlers/responses.ts'
 import { CopilotOAuth } from './auth/copilot.ts'
+import { CodexOAuth } from './auth/codex.ts'
 
 export async function startServer(): Promise<void> {
   // ── Load config + DB ──────────────────────────────────────────────────
@@ -28,6 +30,7 @@ export async function startServer(): Promise<void> {
 
   // ── Register OAuth providers ──────────────────────────────────────────
   credentialStore.registerOAuthProvider('copilot', new CopilotOAuth(credentialStore))
+  credentialStore.registerOAuthProvider('codex', new CodexOAuth(credentialStore))
   const lockStore = new LockStore(db)
   const routing = new DefaultRoutingStrategy(lockStore)
   const usageStore = new UsageStore(db)
@@ -73,6 +76,10 @@ export async function startServer(): Promise<void> {
   app.post(
     '/v1/chat/completions',
     createChatCompletionsHandler(registry, routing, credentialStore, providerRegistry, usageStore)
+  )
+  app.post(
+    '/v1/responses',
+    createResponsesHandler(registry, routing, credentialStore, providerRegistry, usageStore)
   )
 
   // ── Start server ──────────────────────────────────────────────────────

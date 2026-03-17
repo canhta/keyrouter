@@ -4,11 +4,13 @@ import type { ProviderDefinition } from '../types.ts'
 import { openaiProvider } from './openai.ts'
 import { openrouterProvider } from './openrouter.ts'
 import { copilotProvider } from './copilot.ts'
+import { codexProvider } from './codex.ts'
 
 const BUILT_IN_PROVIDERS: ProviderDefinition[] = [
   openaiProvider,
   openrouterProvider,
   copilotProvider,
+  codexProvider,
 ]
 
 export class ProviderRegistry {
