@@ -39,3 +39,4 @@ data/
 # router.json may contain API keys — gitignore by default
 # Users who want to commit their config can run: git add -f router.json
 router.json
+.gstack/
