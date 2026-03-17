@@ -1,0 +1,33 @@
+{
+  "server": {
+    "port": 3000,
+    "apiKey": "local-secret"
+  },
+  "providers": {
+    "openai": {
+      "apiKey": "sk-your-openai-key-here"
+    },
+    "openrouter": {
+      "apiKey": "sk-or-your-openrouter-key-here"
+    }
+  },
+  "models": {
+    "gpt-4o": {
+      "accounts": [
+        { "id": "copilot-default", "provider": "copilot" },
+        { "id": "openai-fallback", "provider": "openai" }
+      ]
+    },
+    "gpt-4o-mini": {
+      "accounts": [
+        { "id": "openai-default", "provider": "openai" }
+      ]
+    },
+    "claude-3-5-sonnet": {
+      "upstreamId": "anthropic/claude-3-5-sonnet",
+      "accounts": [
+        { "id": "openrouter-default", "provider": "openrouter" }
+      ]
+    }
+  }
+}

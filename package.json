@@ -1,0 +1,22 @@
+{
+  "name": "keyrouter",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run bin/keyrouter.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "hono": "^4.12.8"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}
