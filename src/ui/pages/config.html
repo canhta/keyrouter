@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -39,6 +40,7 @@
     .nav-link.active { color: var(--accent); border-bottom-color: var(--accent); }
     .nav-link svg { flex-shrink: 0; opacity: 0.7; }
     .nav-link.active svg { opacity: 1; }
+    [data-lucide] { display: inline-flex; align-items: center; justify-content: center; }
     .hdr-actions { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; }
     .hdr-btn { border: 1px solid var(--border-mid); background: transparent; color: var(--text-muted); font-family: inherit; font-size: 0.68rem; font-weight: 500; padding: 0.28rem 0.6rem; border-radius: var(--radius); cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.3rem; text-decoration: none; }
     .hdr-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -124,23 +126,23 @@
   </a>
   <nav>
     <a href="/dashboard" class="nav-link">
-      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 6.5L7.5 1L14 6.5V14H10V9.5H5V14H1V6.5Z" stroke-linejoin="round"/></svg>
+      <i data-lucide="layout-dashboard" style="width:14px;height:14px;flex-shrink:0"></i>
       <span class="nav-label">Overview</span>
     </a>
     <a href="/dashboard/monitor" class="nav-link">
-      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="1,10 4,5 7,8.5 10,3 14,7"/></svg>
+      <i data-lucide="activity" style="width:14px;height:14px;flex-shrink:0"></i>
       <span class="nav-label">Monitor</span>
     </a>
     <a href="/dashboard/config" class="nav-link active">
-      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="4" x2="14" y2="4"/><line x1="1" y1="11" x2="14" y2="11"/><circle cx="5" cy="4" r="2" fill="var(--bg)"/><circle cx="10" cy="11" r="2" fill="var(--bg)"/></svg>
+      <i data-lucide="sliders-horizontal" style="width:14px;height:14px;flex-shrink:0"></i>
       <span class="nav-label">Config</span>
     </a>
     <a href="/dashboard/auth" class="nav-link">
-      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="6" r="3"/><path d="M8 8.5L13.5 14M11.5 11L13 12.5"/></svg>
+      <i data-lucide="key" style="width:14px;height:14px;flex-shrink:0"></i>
       <span class="nav-label">Auth</span>
     </a>
     <a href="/dashboard/usage" class="nav-link">
-      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="9" width="3" height="5"/><rect x="6" y="6" width="3" height="8"/><rect x="11" y="3" width="3" height="11"/></svg>
+      <i data-lucide="bar-chart-2" style="width:14px;height:14px;flex-shrink:0"></i>
       <span class="nav-label">Usage</span>
     </a>
   </nav>
@@ -166,7 +168,7 @@
       <span class="endpoint-label">Public</span>
       <span class="endpoint-url" id="tunnel-url" style="color:var(--text-muted)">— not exposed —</span>
       <button class="btn" id="tunnel-btn" onclick="toggleTunnel()">
-        <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7.5h13M9 2.5l5 5-5 5"/></svg>
+        <i data-lucide="globe" style="width:12px;height:12px"></i>
         Expose Public URL
       </button>
     </div>
@@ -206,7 +208,7 @@
           <div class="step-desc">Paste this into your OpenCode config file. Your endpoint and API key are pre-filled.</div>
           <div class="code-block" id="snippet-opencode"></div>
           <button class="btn" onclick="copySnippet('opencode')">
-            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="9" rx="1"/><path d="M2 10V2h8"/></svg>
+            <i data-lucide="copy" style="width:12px;height:12px"></i>
             Copy
           </button>
         </div>
@@ -228,7 +230,7 @@
           <div class="step-desc">Fill in these values:</div>
           <div class="code-block" id="snippet-cursor"></div>
           <button class="btn" onclick="copySnippet('cursor')">
-            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="9" rx="1"/><path d="M2 10V2h8"/></svg>
+            <i data-lucide="copy" style="width:12px;height:12px"></i>
             Copy
           </button>
         </div>
@@ -245,7 +247,7 @@
           <div class="step-desc">Add these to your shell profile or .env file:</div>
           <div class="code-block" id="snippet-codex"></div>
           <button class="btn" onclick="copySnippet('codex')">
-            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="9" rx="1"/><path d="M2 10V2h8"/></svg>
+            <i data-lucide="copy" style="width:12px;height:12px"></i>
             Copy
           </button>
         </div>
@@ -262,7 +264,7 @@
           <div class="step-desc">Add this to the <code style="color:var(--accent)">models</code> array in your Continue config:</div>
           <div class="code-block" id="snippet-continue"></div>
           <button class="btn" onclick="copySnippet('continue')">
-            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="9" rx="1"/><path d="M2 10V2h8"/></svg>
+            <i data-lucide="copy" style="width:12px;height:12px"></i>
             Copy
           </button>
         </div>
@@ -279,7 +281,7 @@
           <div class="step-desc">Any client that supports a custom OpenAI base URL will work:</div>
           <div class="code-block" id="snippet-custom"></div>
           <button class="btn" onclick="copySnippet('custom')">
-            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="9" rx="1"/><path d="M2 10V2h8"/></svg>
+            <i data-lucide="copy" style="width:12px;height:12px"></i>
             Copy
           </button>
         </div>
@@ -292,7 +294,7 @@
       <!-- Test connection (shown for all tabs) -->
       <div class="test-row">
         <button class="btn primary" id="test-btn" onclick="testConnection()">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7.5h13M9 2.5l5 5-5 5"/></svg>
+          <i data-lucide="zap" style="width:12px;height:12px"></i>
           Test Connection
         </button>
         <span id="test-result"></span>
@@ -306,7 +308,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
     <div class="section-label" style="margin:0">Models</div>
     <button class="btn" onclick="openAddModel()">
-      <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="5.5" y1="1" x2="5.5" y2="10"/><line x1="1" y1="5.5" x2="10" y2="5.5"/></svg>
+      <i data-lucide="plus" style="width:12px;height:12px"></i>
       Add Model
     </button>
   </div>
@@ -359,6 +361,8 @@
 <div id="toast"></div>
 
 <script>
+// Initialize Lucide icons immediately
+if (typeof lucide !== 'undefined') lucide.createIcons()
 // ── State ──
 const state = { models: [], tunnel: { running: false, url: null }, baseUrl: '' }
 let activeTab = 'opencode'
@@ -531,7 +535,8 @@ async function testConnection() {
     result.className = 'fail'
   }
   btn.disabled = false
-  btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7.5h13M9 2.5l5 5-5 5"/></svg> Test Connection'
+  btn.innerHTML = '<i data-lucide="zap" style="width:12px;height:12px"></i> Test Connection'
+  if (typeof lucide !== 'undefined') lucide.createIcons()
 }
 
 // ── Render models ──
@@ -557,6 +562,7 @@ function renderModels() {
     '<thead><tr><th>Model ID</th><th>Provider</th><th>Accounts</th><th></th></tr></thead>' +
     '<tbody>' + rows + '</tbody>' +
     '</table>'
+  if (typeof lucide !== 'undefined') lucide.createIcons()
 }
 
 // ── Delete model ──
@@ -632,12 +638,14 @@ function renderTunnel() {
     urlEl.textContent = state.tunnel.url
     urlEl.style.color = 'var(--accent)'
     btn.classList.add('active')
-    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="1" x2="14" y2="14"/><line x1="14" y1="1" x2="1" y2="14"/></svg> Stop Tunnel'
+    btn.innerHTML = '<i data-lucide="x" style="width:12px;height:12px"></i> Stop Tunnel'
+    if (typeof lucide !== 'undefined') lucide.createIcons()
   } else {
     urlEl.textContent = '\u2014 not exposed \u2014'
     urlEl.style.color = 'var(--text-muted)'
     btn.classList.remove('active')
-    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7.5h13M9 2.5l5 5-5 5"/></svg> Expose Public URL'
+    btn.innerHTML = '<i data-lucide="globe" style="width:12px;height:12px"></i> Expose Public URL'
+    if (typeof lucide !== 'undefined') lucide.createIcons()
   }
 }
 

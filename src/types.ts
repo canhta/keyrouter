@@ -37,7 +37,7 @@ export interface OAuthProvider {
   /** Start device flow — returns codes to show user immediately (non-blocking) */
   startDeviceFlow(): Promise<DeviceFlowStart>
   /** Poll once for authorization result. Caller manages interval timing. */
-  pollOnce(opts: { deviceCode: string; accountId: string; codeVerifier?: string }): Promise<DevicePollResult>
+  pollOnce(opts: { deviceCode: string; userCode?: string; accountId: string; codeVerifier?: string }): Promise<DevicePollResult>
 }
 
 export interface CredentialStore {

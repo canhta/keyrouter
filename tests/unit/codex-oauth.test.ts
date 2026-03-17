@@ -29,27 +29,23 @@ afterEach(() => {
 })
 
 describe('CodexOAuth.startDeviceFlow()', () => {
-  it('returns DeviceFlowStart including codeVerifier', async () => {
+  it('returns DeviceFlowStart with device_auth_id and user_code', async () => {
     const db = makeDb()
     const store = new SqliteCredentialStore(db)
     const oauth = new CodexOAuth(store)
 
     globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
-      device_code: 'codex-dev-code',
+      device_auth_id: 'codex-dev-auth-id',
       user_code: 'WXYZ-1234',
-      verification_uri: 'https://auth.openai.com/activate',
-      expires_in: 600,
-      interval: 5,
+      interval: '5',
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     const result = await oauth.startDeviceFlow()
-    expect(result.deviceCode).toBe('codex-dev-code')
+    expect(result.deviceCode).toBe('codex-dev-auth-id')
     expect(result.userCode).toBe('WXYZ-1234')
-    expect(result.expiresIn).toBe(600)
-    // PKCE: codeVerifier must be returned so inflight map can thread it to pollOnce
-    expect(result.codeVerifier).toBeDefined()
-    expect(typeof result.codeVerifier).toBe('string')
-    expect(result.codeVerifier!.length).toBeGreaterThan(0)
+    expect(result.expiresIn).toBe(900)
+    expect(result.interval).toBe(5)
+    expect(result.verificationUri).toBe('https://auth.openai.com/codex/device')
   })
 
   it('throws OAuthClientError when auth endpoint fails', async () => {
@@ -64,62 +60,80 @@ describe('CodexOAuth.startDeviceFlow()', () => {
 })
 
 describe('CodexOAuth.pollOnce()', () => {
-  it('returns pending on authorization_pending', async () => {
+  it('returns pending when poll returns 403', async () => {
     const db = makeDb()
     const store = new SqliteCredentialStore(db)
     const oauth = new CodexOAuth(store)
 
-    globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
-      error: 'authorization_pending',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
+    globalThis.fetch = mock(() => Promise.resolve(
+      new Response('', { status: 403 })
+    )) as unknown as typeof fetch
 
-    const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })
+    const result = await oauth.pollOnce({ deviceCode: 'dev-id', userCode: 'ABCD', accountId: 'user1' })
     expect(result.status).toBe('pending')
   })
 
-  it('returns slow_down on slow_down error', async () => {
+  it('returns pending when poll returns 404', async () => {
     const db = makeDb()
     const store = new SqliteCredentialStore(db)
     const oauth = new CodexOAuth(store)
 
-    globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
-      error: 'slow_down',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
+    globalThis.fetch = mock(() => Promise.resolve(
+      new Response('', { status: 404 })
+    )) as unknown as typeof fetch
 
-    const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })
-    expect(result.status).toBe('slow_down')
+    const result = await oauth.pollOnce({ deviceCode: 'dev-id', userCode: 'ABCD', accountId: 'user1' })
+    expect(result.status).toBe('pending')
   })
 
-  it('returns expired on expired_token', async () => {
+  it('saves credential and returns success on authorization code + token exchange', async () => {
     const db = makeDb()
     const store = new SqliteCredentialStore(db)
     const oauth = new CodexOAuth(store)
 
-    globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
-      error: 'expired_token',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
+    let callCount = 0
+    globalThis.fetch = mock(() => {
+      callCount++
+      if (callCount === 1) {
+        // Poll response: authorization code
+        return Promise.resolve(new Response(JSON.stringify({
+          authorization_code: 'auth-code-123',
+          code_challenge: 'challenge-abc',
+          code_verifier: 'verifier-xyz',
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      }
+      // Token exchange response
+      return Promise.resolve(new Response(JSON.stringify({
+        id_token: 'eyJ_id_token',
+        access_token: 'eyJ_access_token',
+        refresh_token: 'eyJ_refresh_token',
+        expires_in: 3600,
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    }) as unknown as typeof fetch
 
-    const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })
-    expect(result.status).toBe('expired')
-  })
-
-  it('saves credential and returns success on valid token', async () => {
-    const db = makeDb()
-    const store = new SqliteCredentialStore(db)
-    const oauth = new CodexOAuth(store)
-
-    globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
-      access_token: 'eyJ_access_token',
-      refresh_token: 'eyJ_refresh_token',
-      expires_in: 3600,
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
-
-    const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1', codeVerifier: 'verifier123' })
+    const result = await oauth.pollOnce({ deviceCode: 'dev-id', userCode: 'ABCD', accountId: 'user1' })
     expect(result.status).toBe('success')
     if (result.status === 'success') {
       expect(result.credential.providerId).toBe('codex')
       expect(result.credential.accountId).toBe('user1')
       expect(result.credential.type).toBe('oauth')
+      expect(result.credential.value).toBe('eyJ_access_token')
+      expect(result.credential.refreshToken).toBe('eyJ_refresh_token')
     }
+    expect(callCount).toBe(2)
+  })
+
+  it('throws OAuthClientError on unexpected poll status', async () => {
+    const db = makeDb()
+    const store = new SqliteCredentialStore(db)
+    const oauth = new CodexOAuth(store)
+
+    globalThis.fetch = mock(() => Promise.resolve(
+      new Response('Server Error', { status: 500 })
+    )) as unknown as typeof fetch
+
+    await expect(
+      oauth.pollOnce({ deviceCode: 'dev-id', userCode: 'ABCD', accountId: 'user1' })
+    ).rejects.toThrow(OAuthClientError)
   })
 })

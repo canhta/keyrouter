@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -39,6 +40,7 @@
     .nav-link.active { color: var(--accent); border-bottom-color: var(--accent); }
     .nav-link svg { flex-shrink: 0; opacity: 0.7; }
     .nav-link.active svg { opacity: 1; }
+    [data-lucide] { display: inline-flex; align-items: center; justify-content: center; }
     .hdr-actions { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; }
     .hdr-btn { border: 1px solid var(--border-mid); background: transparent; color: var(--text-muted); font-family: inherit; font-size: 0.68rem; font-weight: 500; padding: 0.28rem 0.6rem; border-radius: var(--radius); cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.3rem; text-decoration: none; }
     .hdr-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -107,23 +109,23 @@
     </a>
     <nav>
       <a href="/dashboard" class="nav-link">
-        <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 6.5L7.5 1L14 6.5V14H10V9.5H5V14H1V6.5Z" stroke-linejoin="round"/></svg>
+        <i data-lucide="layout-dashboard" style="width:14px;height:14px;flex-shrink:0"></i>
         <span class="nav-label">Overview</span>
       </a>
       <a href="/dashboard/monitor" class="nav-link">
-        <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="1,10 4,5 7,8.5 10,3 14,7"/></svg>
+        <i data-lucide="activity" style="width:14px;height:14px;flex-shrink:0"></i>
         <span class="nav-label">Monitor</span>
       </a>
       <a href="/dashboard/config" class="nav-link">
-        <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="4" x2="14" y2="4"/><line x1="1" y1="11" x2="14" y2="11"/><circle cx="5" cy="4" r="2" fill="var(--bg)"/><circle cx="10" cy="11" r="2" fill="var(--bg)"/></svg>
+        <i data-lucide="sliders-horizontal" style="width:14px;height:14px;flex-shrink:0"></i>
         <span class="nav-label">Config</span>
       </a>
       <a href="/dashboard/auth" class="nav-link active">
-        <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="6" r="3"/><path d="M8 8.5L13.5 14M11.5 11L13 12.5"/></svg>
+        <i data-lucide="key" style="width:14px;height:14px;flex-shrink:0"></i>
         <span class="nav-label">Auth</span>
       </a>
       <a href="/dashboard/usage" class="nav-link">
-        <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="9" width="3" height="5"/><rect x="6" y="6" width="3" height="8"/><rect x="11" y="3" width="3" height="11"/></svg>
+        <i data-lucide="bar-chart-2" style="width:14px;height:14px;flex-shrink:0"></i>
         <span class="nav-label">Usage</span>
       </a>
     </nav>
@@ -156,9 +158,9 @@
         <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem">2. Enter this code:</p>
         <div class="modal-code" id="auth-code"></div>
         <div class="btn-row" style="margin-top:1rem">
-          <button class="btn primary" onclick="openAuthUri()">Open in Browser</button>
-          <button class="btn" onclick="copyAuthCode()">Copy Code</button>
-          <button class="btn danger" onclick="cancelAuth()">Cancel</button>
+          <button class="btn primary" onclick="openAuthUri()"><i data-lucide="external-link" style="width:12px;height:12px"></i> Open in Browser</button>
+          <button class="btn" onclick="copyAuthCode()"><i data-lucide="copy" style="width:12px;height:12px"></i> Copy Code</button>
+          <button class="btn danger" onclick="cancelAuth()"><i data-lucide="x" style="width:12px;height:12px"></i> Cancel</button>
         </div>
         <p style="margin-top:1rem;font-size:0.72rem;color:var(--text-muted)">&#8987; Waiting for authorization…</p>
       </div>
@@ -169,6 +171,8 @@
   <div id="toast"></div>
 
 <script>
+// Initialize Lucide icons immediately
+if (typeof lucide !== 'undefined') lucide.createIcons()
 // ── Auth modal state ────────────────────────────────────────────────────────
 let currentAuth = null
 
@@ -276,6 +280,7 @@ function renderAccounts(accounts, models) {
   }
 
   container.innerHTML = html
+  if (typeof lucide !== 'undefined') lucide.createIcons()
 }
 
 function esc(s) {
@@ -314,6 +319,7 @@ async function startAuth(providerId, accountId) {
   document.getElementById('auth-code').textContent = d.userCode
   document.getElementById('auth-code-section').style.display = 'block'
   document.getElementById('auth-step').textContent = ''
+  if (typeof lucide !== 'undefined') lucide.createIcons()
 
   pollAuth()
 }

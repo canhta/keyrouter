@@ -96,6 +96,7 @@ export function createDashboardAuthHandlers(
     try {
       result = await oauthProvider.pollOnce({
         deviceCode: state.deviceCode,
+        userCode: state.userCode,
         accountId: state.accountId,
         codeVerifier: state.codeVerifier,
       })

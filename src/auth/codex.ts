@@ -1,15 +1,14 @@
-// src/auth/codex.ts — OpenAI Codex CLI OAuth (PKCE device flow)
+// src/auth/codex.ts — OpenAI Codex CLI OAuth (device code flow)
 //
-// Reference: CLIProxyAPI/sdk/auth/codex.go + codex_device.go
+// Reference: codex-rs/login/src/device_code_auth.rs + server.rs
 //
-// PKCE device flow:
-//   1. Generate code_verifier (random 32 bytes → base64url)
-//   2. Compute code_challenge = SHA-256(verifier) → base64url
-//   3. POST /oauth/authorize with PKCE params → get device_code
-//   4. Print verification_uri + user_code
-//   5. Poll /oauth/token until authorized or expired
-//
-// Constants confirmed from CLIProxyAPI source:
+// Device code flow:
+//   1. POST /api/accounts/deviceauth/usercode { client_id } → { device_auth_id, user_code, interval }
+//   2. User visits https://auth.openai.com/codex/device and enters user_code
+//   3. Poll POST /api/accounts/deviceauth/token { device_auth_id, user_code }
+//      until 200 → { authorization_code, code_challenge, code_verifier }
+//   4. POST /oauth/token (form-urlencoded) with grant_type=authorization_code + PKCE
+//      → { id_token, access_token, refresh_token }
 
 import {
   type Credential,
@@ -23,26 +22,31 @@ import {
 } from '../types.ts'
 
 const CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann'
-const AUTH_URL = 'https://auth.openai.com/oauth/authorize'
-const TOKEN_URL = 'https://auth.openai.com/oauth/token'
-const REDIRECT_URI = 'http://localhost:1455/auth/callback'
-const SCOPES = 'openid email profile offline_access'
+const BASE_URL = 'https://auth.openai.com'
+const USERCODE_URL = `${BASE_URL}/api/accounts/deviceauth/usercode`
+const TOKEN_POLL_URL = `${BASE_URL}/api/accounts/deviceauth/token`
+const TOKEN_EXCHANGE_URL = `${BASE_URL}/oauth/token`
+const REDIRECT_URI = `${BASE_URL}/deviceauth/callback`
+const VERIFICATION_URI = `${BASE_URL}/codex/device`
+const DEVICE_CODE_EXPIRES_IN = 900  // 15 minutes
 
-interface DeviceAuthResponse {
-  device_code: string
+interface UsercodeResponse {
+  device_auth_id: string
   user_code: string
-  verification_uri: string
-  verification_uri_complete?: string
-  expires_in: number
-  interval: number
+  interval: string | number
+}
+
+interface CodeSuccessResponse {
+  authorization_code: string
+  code_challenge: string
+  code_verifier: string
 }
 
 interface TokenResponse {
+  id_token?: string
   access_token?: string
   refresh_token?: string
   expires_in?: number
-  id_token?: string
-  token_type?: string
   error?: string
   error_description?: string
 }
@@ -50,78 +54,68 @@ interface TokenResponse {
 export class CodexOAuth implements OAuthProvider {
   constructor(private credentialStore: CredentialStore) {}
 
-  /** Start PKCE device flow — generates verifier, requests device code, returns immediately */
+  /** Start device code flow — POST to /deviceauth/usercode, return codes immediately */
   async startDeviceFlow(): Promise<DeviceFlowStart> {
-    const codeVerifier = generateCodeVerifier()
-    const codeChallenge = await generateCodeChallenge(codeVerifier)
-
-    const authParams = new URLSearchParams({
-      response_type: 'device_code',
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      redirect_uri: REDIRECT_URI,
-      code_challenge: codeChallenge,
-      code_challenge_method: 'S256',
-      prompt: 'login',
-      id_token_add_organizations: 'true',
-      codex_cli_simplified_flow: 'true',
-    })
-
-    const authResp = await fetch(`${AUTH_URL}?${authParams}`, {
+    const resp = await fetch(USERCODE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: CLIENT_ID }),
     })
 
-    if (!authResp.ok) {
-      throw new OAuthClientError(`Device code request failed: ${authResp.status}`)
+    if (!resp.ok) {
+      throw new OAuthClientError(`Device code request failed: ${resp.status}`)
     }
 
-    const device: DeviceAuthResponse = await authResp.json() as DeviceAuthResponse
+    const data: UsercodeResponse = await resp.json() as UsercodeResponse
+    const interval = typeof data.interval === 'string'
+      ? parseInt(data.interval, 10)
+      : (data.interval ?? 5)
+
     return {
-      deviceCode: device.device_code,
-      userCode: device.user_code,
-      verificationUri: device.verification_uri_complete ?? device.verification_uri,
-      expiresIn: device.expires_in,
-      interval: device.interval,
-      codeVerifier,  // stored by dashboard-api for subsequent pollOnce calls
+      deviceCode: data.device_auth_id,
+      userCode: data.user_code,
+      verificationUri: VERIFICATION_URI,
+      expiresIn: DEVICE_CODE_EXPIRES_IN,
+      interval,
     }
   }
 
-  /** Poll once for authorization result. Caller manages timing/looping. */
-  async pollOnce(opts: { deviceCode: string; accountId: string; codeVerifier?: string }): Promise<DevicePollResult> {
-    const tokenResp = await fetch(TOKEN_URL, {
+  /** Poll once. On success, exchanges authorization_code for access token and saves credential. */
+  async pollOnce(opts: { deviceCode: string; userCode?: string; accountId: string }): Promise<DevicePollResult> {
+    const resp = await fetch(TOKEN_POLL_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-        device_code: opts.deviceCode,
-        client_id: CLIENT_ID,
-        code_verifier: opts.codeVerifier,
+        device_auth_id: opts.deviceCode,
+        user_code: opts.userCode ?? '',
       }),
     })
 
-    const token: TokenResponse = await tokenResp.json() as TokenResponse
-
-    if (token.error === 'authorization_pending') return { status: 'pending' }
-    if (token.error === 'slow_down') return { status: 'slow_down' }
-    if (token.error === 'expired_token') return { status: 'expired' }
-    if (token.error === 'access_denied') throw new OAuthClientError('Access denied by user')
-    if (token.error) throw new OAuthClientError(`Auth error: ${token.error} — ${token.error_description}`)
-
-    if (token.access_token) {
-      const cred: Credential = {
-        providerId: 'codex',
-        accountId: opts.accountId,
-        type: 'oauth',
-        value: token.access_token,
-        refreshToken: token.refresh_token,
-        expiresAt: token.expires_in ? Date.now() + token.expires_in * 1000 : undefined,
-      }
-      await this.credentialStore.save(cred)
-      return { status: 'success', credential: cred }
+    // Still pending (403 = not yet authorized, 404 = polling too fast)
+    if (resp.status === 403 || resp.status === 404) {
+      return { status: 'pending' }
     }
 
-    return { status: 'pending' }
+    if (!resp.ok) {
+      throw new OAuthClientError(`Poll failed with status ${resp.status}`)
+    }
+
+    const code: CodeSuccessResponse = await resp.json() as CodeSuccessResponse
+
+    // Exchange authorization_code for tokens
+    const tokens = await this.exchangeCode(code.authorization_code, code.code_verifier)
+
+    const cred: Credential = {
+      providerId: 'codex',
+      accountId: opts.accountId,
+      type: 'oauth',
+      value: tokens.access_token!,
+      refreshToken: tokens.refresh_token,
+      expiresAt: tokens.expires_in ? Date.now() + tokens.expires_in * 1000 : undefined,
+    }
+
+    await this.credentialStore.save(cred)
+    return { status: 'success', credential: cred }
   }
 
   /** CLI entry point — full device flow loop */
@@ -132,7 +126,7 @@ export class CodexOAuth implements OAuthProvider {
 ┌─────────────────────────────────────────────────────────┐
 │  OpenAI Codex Authentication                            │
 │                                                         │
-│  1. Visit: ${device.verificationUri.padEnd(45)}│
+│  1. Visit: ${VERIFICATION_URI.padEnd(45)}│
 │  2. Enter code: ${device.userCode.padEnd(41)}│
 │                                                         │
 │  Waiting for authorization...                           │
@@ -140,14 +134,14 @@ export class CodexOAuth implements OAuthProvider {
 `)
 
     let intervalMs = device.interval * 1000
-    const deadline = Date.now() + device.expiresIn * 1000
+    const deadline = Date.now() + DEVICE_CODE_EXPIRES_IN * 1000
 
     while (Date.now() < deadline) {
       await sleep(intervalMs)
       const result = await this.pollOnce({
         deviceCode: device.deviceCode,
+        userCode: device.userCode,
         accountId,
-        codeVerifier: device.codeVerifier,
       })
 
       if (result.status === 'pending') continue
@@ -164,14 +158,14 @@ export class CodexOAuth implements OAuthProvider {
       throw new OAuthRevokedError(cred.providerId, cred.accountId)
     }
 
-    const resp = await fetch(TOKEN_URL, {
+    const resp = await fetch(TOKEN_EXCHANGE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: CLIENT_ID,
         refresh_token: cred.refreshToken,
-      }),
+      }).toString(),
     })
 
     if (resp.status === 401) {
@@ -198,26 +192,27 @@ export class CodexOAuth implements OAuthProvider {
     await this.credentialStore.save(refreshed)
     return refreshed
   }
-}
 
-// ── PKCE helpers ─────────────────────────────────────────────────────────────
+  private async exchangeCode(authorizationCode: string, codeVerifier: string): Promise<TokenResponse> {
+    const resp = await fetch(TOKEN_EXCHANGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: authorizationCode,
+        redirect_uri: REDIRECT_URI,
+        client_id: CLIENT_ID,
+        code_verifier: codeVerifier,
+      }).toString(),
+    })
 
-function generateCodeVerifier(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32))
-  return base64urlEncode(bytes)
-}
+    if (!resp.ok) {
+      const body = await resp.text()
+      throw new OAuthClientError(`Token exchange failed (${resp.status}): ${body}`)
+    }
 
-async function generateCodeChallenge(verifier: string): Promise<string> {
-  const encoded = new TextEncoder().encode(verifier)
-  const digest = await crypto.subtle.digest('SHA-256', encoded)
-  return base64urlEncode(new Uint8Array(digest))
-}
-
-function base64urlEncode(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '')
+    return resp.json() as Promise<TokenResponse>
+  }
 }
 
 function sleep(ms: number): Promise<void> {
