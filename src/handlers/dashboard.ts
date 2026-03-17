@@ -31,6 +31,98 @@ export function createDashboardHandler(sessionManager: SessionManager) {
   }
 }
 
+const AUTH_PAGE_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: #0d0f14;
+    color: #dde1ed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1rem;
+    -webkit-font-smoothing: antialiased;
+  }
+  .card {
+    background: #13161f;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
+  }
+  .logo-mark {
+    width: 24px;
+    height: 24px;
+    background: #f59e0b;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #000;
+  }
+  .logo-name { font-size: 1rem; font-weight: 700; letter-spacing: 0.06em; }
+  .subtitle { font-size: 0.78rem; color: #525870; margin-bottom: 1.75rem; }
+  label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #525870;
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  input {
+    width: 100%;
+    background: #1a1e2a;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: #dde1ed;
+    padding: 0.6rem 0.75rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    transition: border-color 0.15s;
+  }
+  input:focus { outline: none; border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.12); }
+  button {
+    width: 100%;
+    background: #f59e0b;
+    border: none;
+    border-radius: 6px;
+    color: #000;
+    padding: 0.65rem;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: opacity 0.15s;
+  }
+  button:hover { opacity: 0.88; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .error {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 1rem;
+    font-size: 0.78rem;
+    color: #ef4444;
+  }
+`
+
 export function createSetupPageHandler() {
   return (_c: Context) => {
     const html = `<!DOCTYPE html>
@@ -38,32 +130,23 @@ export function createSetupPageHandler() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KEYROUTER — Setup</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: monospace; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .card { border: 4px solid #000; padding: 2rem; width: 100%; max-width: 420px; box-shadow: 6px 6px 0 #000; }
-    h1 { font-size: 1.5rem; font-weight: 900; letter-spacing: 0.1em; margin-bottom: 0.25rem; }
-    p { font-size: 0.85rem; margin-bottom: 1.5rem; }
-    label { font-size: 0.75rem; font-weight: 700; display: block; margin-bottom: 0.25rem; }
-    input { width: 100%; border: 2px solid #000; padding: 0.5rem; font-family: monospace; font-size: 1rem; margin-bottom: 1rem; }
-    input:focus { outline: 2px solid #000; outline-offset: 2px; }
-    button { width: 100%; border: 2px solid #000; background: #000; color: #fff; padding: 0.6rem; font-family: monospace; font-size: 1rem; font-weight: 700; cursor: pointer; letter-spacing: 0.05em; }
-    button:hover { background: #fff; color: #000; }
-    .error { background: #ff0; border: 2px solid #000; padding: 0.5rem; margin-bottom: 1rem; font-size: 0.85rem; }
-  </style>
+  <title>Keyrouter — Setup</title>
+  <style>${AUTH_PAGE_STYLES}</style>
 </head>
 <body>
   <div class="card">
-    <h1>KEYROUTER</h1>
-    <p>First run. Set an admin password.</p>
+    <div class="logo">
+      <span class="logo-mark">K</span>
+      <span class="logo-name">Keyrouter</span>
+    </div>
+    <p class="subtitle">First run — set an admin password</p>
     <div id="error" class="error" style="display:none"></div>
     <form id="form">
-      <label for="password">ADMIN PASSWORD</label>
-      <input type="password" id="password" name="password" minlength="8" required autocomplete="new-password">
-      <label for="confirm">CONFIRM PASSWORD</label>
-      <input type="password" id="confirm" name="confirm" minlength="8" required autocomplete="new-password">
-      <button type="submit">SET PASSWORD →</button>
+      <label for="password">Admin Password</label>
+      <input type="password" id="password" name="password" minlength="8" required autocomplete="new-password" placeholder="min. 8 characters">
+      <label for="confirm">Confirm Password</label>
+      <input type="password" id="confirm" name="confirm" minlength="8" required autocomplete="new-password" placeholder="repeat password">
+      <button type="submit" id="btn">Set Password →</button>
     </form>
   </div>
   <script>
@@ -72,12 +155,14 @@ export function createSetupPageHandler() {
       const pw = document.getElementById('password').value
       const confirm = document.getElementById('confirm').value
       const errorEl = document.getElementById('error')
-      if (pw !== confirm) { errorEl.textContent = 'Passwords do not match'; errorEl.style.display = ''; return }
-      if (pw.length < 8) { errorEl.textContent = 'Password must be at least 8 characters'; errorEl.style.display = ''; return }
+      const btn = document.getElementById('btn')
+      if (pw !== confirm) { errorEl.textContent = 'Passwords do not match'; errorEl.style.display = 'block'; return }
+      if (pw.length < 8) { errorEl.textContent = 'Password must be at least 8 characters'; errorEl.style.display = 'block'; return }
       errorEl.style.display = 'none'
+      btn.disabled = true; btn.textContent = 'Setting up…'
       const r = await fetch('/dashboard/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) })
       if (r.ok) { window.location.href = '/dashboard/login' }
-      else { const d = await r.json(); errorEl.textContent = d.error || 'Setup failed'; errorEl.style.display = '' }
+      else { const d = await r.json(); errorEl.textContent = d.error || 'Setup failed'; errorEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Set Password →' }
     })
   </script>
 </body>
@@ -93,30 +178,21 @@ export function createLoginPageHandler() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KEYROUTER — Login</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: monospace; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .card { border: 4px solid #000; padding: 2rem; width: 100%; max-width: 380px; box-shadow: 6px 6px 0 #000; }
-    h1 { font-size: 1.5rem; font-weight: 900; letter-spacing: 0.1em; margin-bottom: 0.25rem; }
-    p { font-size: 0.85rem; margin-bottom: 1.5rem; }
-    label { font-size: 0.75rem; font-weight: 700; display: block; margin-bottom: 0.25rem; }
-    input { width: 100%; border: 2px solid #000; padding: 0.5rem; font-family: monospace; font-size: 1rem; margin-bottom: 1rem; }
-    input:focus { outline: 2px solid #000; outline-offset: 2px; }
-    button { width: 100%; border: 2px solid #000; background: #000; color: #fff; padding: 0.6rem; font-family: monospace; font-size: 1rem; font-weight: 700; cursor: pointer; letter-spacing: 0.05em; }
-    button:hover { background: #fff; color: #000; }
-    .error { background: #ff0; border: 2px solid #000; padding: 0.5rem; margin-bottom: 1rem; font-size: 0.85rem; }
-  </style>
+  <title>Keyrouter — Login</title>
+  <style>${AUTH_PAGE_STYLES}</style>
 </head>
 <body>
   <div class="card">
-    <h1>KEYROUTER</h1>
-    <p>Admin login</p>
+    <div class="logo">
+      <span class="logo-mark">K</span>
+      <span class="logo-name">Keyrouter</span>
+    </div>
+    <p class="subtitle">Admin login</p>
     <div id="error" class="error" style="display:none"></div>
     <form id="form">
-      <label for="password">PASSWORD</label>
-      <input type="password" id="password" name="password" required autocomplete="current-password">
-      <button type="submit">LOGIN →</button>
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+      <button type="submit" id="btn">Login →</button>
     </form>
   </div>
   <script>
@@ -124,10 +200,12 @@ export function createLoginPageHandler() {
       e.preventDefault()
       const pw = document.getElementById('password').value
       const errorEl = document.getElementById('error')
+      const btn = document.getElementById('btn')
       errorEl.style.display = 'none'
+      btn.disabled = true; btn.textContent = 'Logging in…'
       const r = await fetch('/dashboard/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) })
       if (r.ok) { window.location.href = '/dashboard' }
-      else { const d = await r.json(); errorEl.textContent = d.error || 'Login failed'; errorEl.style.display = '' }
+      else { const d = await r.json(); errorEl.textContent = d.error || 'Login failed'; errorEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Login →' }
     })
   </script>
 </body>
