@@ -10,9 +10,9 @@
 //   POST /dashboard/api/auth/start
 //   GET  /dashboard/api/auth/status/:userCode
 //   DELETE /dashboard/api/auth/cancel/:userCode
-//   POST /dashboard/api/tunnel/start
-//   POST /dashboard/api/tunnel/stop
-//   GET  /dashboard/api/tunnel/status
+//   POST   /dashboard/api/tunnel
+//   DELETE /dashboard/api/tunnel
+//   GET    /dashboard/api/tunnel
 
 import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'
 import { Hono } from 'hono'
@@ -324,15 +324,15 @@ describe('GET /dashboard/api/auth/status/:userCode', () => {
 
 // ── Tunnel ────────────────────────────────────────────────────────────────────
 
-describe('GET /dashboard/api/tunnel/status', () => {
+describe('GET /dashboard/api/tunnel', () => {
   it('returns running=false and url=null initially', async () => {
     const bus = new DashboardEventBus()
     const tunnelMgr = new TunnelManager(3000, bus)
 
     const app = new Hono()
-    app.get('/dashboard/api/tunnel/status', createTunnelStatusHandler(tunnelMgr))
+    app.get('/dashboard/api/tunnel', createTunnelStatusHandler(tunnelMgr))
 
-    const res = await app.request('/dashboard/api/tunnel/status')
+    const res = await app.request('/dashboard/api/tunnel')
     expect(res.status).toBe(200)
     const body = await res.json() as { running: boolean; url: string | null }
     expect(body.running).toBe(false)
@@ -340,7 +340,7 @@ describe('GET /dashboard/api/tunnel/status', () => {
   })
 })
 
-describe('POST /dashboard/api/tunnel/stop', () => {
+describe('DELETE /dashboard/api/tunnel', () => {
   it('returns 403 without CSRF', async () => {
     const db = makeDb()
     const sessionManager = new SessionManager(db)
@@ -348,9 +348,9 @@ describe('POST /dashboard/api/tunnel/stop', () => {
     const tunnelMgr = new TunnelManager(3000, bus)
 
     const app = new Hono()
-    app.post('/dashboard/api/tunnel/stop', createTunnelStopHandler(sessionManager, tunnelMgr))
+    app.delete('/dashboard/api/tunnel', createTunnelStopHandler(sessionManager, tunnelMgr))
 
-    const res = await app.request('/dashboard/api/tunnel/stop', { method: 'POST' })
+    const res = await app.request('/dashboard/api/tunnel', { method: 'DELETE' })
     expect(res.status).toBe(403)
   })
 
@@ -362,10 +362,10 @@ describe('POST /dashboard/api/tunnel/stop', () => {
     const tunnelMgr = new TunnelManager(3000, bus)
 
     const app = new Hono()
-    app.post('/dashboard/api/tunnel/stop', createTunnelStopHandler(sessionManager, tunnelMgr))
+    app.delete('/dashboard/api/tunnel', createTunnelStopHandler(sessionManager, tunnelMgr))
 
-    const res = await app.request('/dashboard/api/tunnel/stop', {
-      method: 'POST',
+    const res = await app.request('/dashboard/api/tunnel', {
+      method: 'DELETE',
       headers: makeCsrfHeaders(session),
     })
     expect(res.status).toBe(404)

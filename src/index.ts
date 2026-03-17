@@ -165,9 +165,9 @@ export async function startServer(): Promise<void> {
   app.delete('/dashboard/api/auth/cancel/:userCode', authHandlers.cancelHandler)
 
   // Dashboard tunnel
-  app.post('/dashboard/api/tunnel/start', createTunnelStartHandler(sessionManager, tunnelManager))
-  app.post('/dashboard/api/tunnel/stop', createTunnelStopHandler(sessionManager, tunnelManager))
-  app.get('/dashboard/api/tunnel/status', createTunnelStatusHandler(tunnelManager))
+  app.post('/dashboard/api/tunnel', createTunnelStartHandler(sessionManager, tunnelManager))
+  app.delete('/dashboard/api/tunnel', createTunnelStopHandler(sessionManager, tunnelManager))
+  app.get('/dashboard/api/tunnel', createTunnelStatusHandler(tunnelManager))
 
   // ── Graceful shutdown ─────────────────────────────────────────────────
   process.on('SIGTERM', () => {
