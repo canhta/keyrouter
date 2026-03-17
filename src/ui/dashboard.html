@@ -88,6 +88,15 @@
     /* ── Usage bars ── */
     .usage-row { margin-bottom: 0.5rem; }
     .usage-model { font-weight: 700; font-size: 0.8rem; margin-bottom: 0.2rem; }
+
+    /* ── Modal form fields ── */
+    .field-group { margin-bottom: 0.75rem; }
+    .field-group label { font-size: 0.7rem; font-weight: 900; letter-spacing: 0.1em; display: block; margin-bottom: 0.25rem; }
+    .field-group input { width: 100%; border: 2px solid var(--black); background: var(--white); color: var(--black); padding: 0.35rem 0.5rem; font-family: inherit; font-size: 0.85rem; }
+    .field-group input:focus { outline: 2px solid var(--black); outline-offset: 1px; }
+    .modal-error { background: var(--yellow); border: 2px solid var(--black); padding: 0.4rem; margin-bottom: 0.5rem; font-size: 0.8rem; }
+    .snippet-pre { font-family: inherit; font-size: 0.75rem; border: 2px solid var(--black); padding: 0.5rem; background: rgba(0,0,0,0.04); white-space: pre; overflow-x: auto; margin-bottom: 0.75rem; user-select: all; cursor: text; }
+    html.dark .snippet-pre { background: rgba(255,255,255,0.04); }
   </style>
 </head>
 <body>
@@ -151,6 +160,44 @@
     </div>
     <div id="log-lines"></div>
   </footer>
+</div>
+
+<!-- ADD MODEL MODAL -->
+<div class="modal-backdrop" id="add-model-modal">
+  <div class="modal">
+    <h2>ADD MODEL</h2>
+    <form id="add-model-form" onsubmit="submitAddModel(event)">
+      <div class="field-group">
+        <label for="add-model-id">MODEL ID</label>
+        <input type="text" id="add-model-id" placeholder="e.g. gpt-4o" required autocomplete="off">
+      </div>
+      <div class="field-group">
+        <label for="add-model-provider">PROVIDER</label>
+        <input type="text" id="add-model-provider" placeholder="e.g. copilot" required autocomplete="off">
+      </div>
+      <div class="field-group">
+        <label for="add-model-account">ACCOUNT ID</label>
+        <input type="text" id="add-model-account" placeholder="e.g. default" required autocomplete="off">
+      </div>
+      <div id="add-model-error" class="modal-error" style="display:none"></div>
+      <div class="btn-row" style="margin-top:1rem">
+        <button class="btn" type="submit" id="add-model-submit">ADD →</button>
+        <button class="btn" type="button" onclick="closeAddModel()">CANCEL</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SNIPPET MODAL (clipboard fallback) -->
+<div class="modal-backdrop" id="snippet-modal">
+  <div class="modal">
+    <h2>COPY CONFIG SNIPPET</h2>
+    <p style="margin-bottom:0.75rem;font-size:0.8rem">Clipboard unavailable — select all and copy manually:</p>
+    <pre class="snippet-pre" id="snippet-text"></pre>
+    <div class="btn-row">
+      <button class="btn" onclick="closeSnippetModal()">CLOSE</button>
+    </div>
+  </div>
 </div>
 
 <!-- AUTH MODAL -->
@@ -499,9 +546,9 @@ function openAuthUri() {
 }
 
 // ── Config snippet copy ────────────────────────────────────────────────────
-function copySnippet() {
+function buildSnippet() {
   const baseURL = document.getElementById('local-url').textContent.replace('/v1', '')
-  const snippet = JSON.stringify({
+  return JSON.stringify({
     provider: {
       keyrouter: {
         npm: '@ai-sdk/openai-compatible',
@@ -509,12 +556,23 @@ function copySnippet() {
       }
     }
   }, null, 2)
+}
+
+function copySnippet() {
+  const snippet = buildSnippet()
+  const btn = event.currentTarget
+  const orig = btn.textContent
   navigator.clipboard.writeText(snippet).then(() => {
-    const btn = event.target
-    const orig = btn.textContent
     btn.textContent = 'COPIED!'
     setTimeout(() => { btn.textContent = orig }, 1500)
-  }).catch(() => {})
+  }).catch(() => {
+    document.getElementById('snippet-text').textContent = snippet
+    document.getElementById('snippet-modal').classList.add('open')
+  })
+}
+
+function closeSnippetModal() {
+  document.getElementById('snippet-modal').classList.remove('open')
 }
 
 function updateLocalUrl() {
@@ -532,16 +590,47 @@ async function deleteModel(id) {
 }
 
 function openAddModel() {
-  const id = prompt('Model ID (e.g. gpt-4o):')
-  if (!id) return
-  const provider = prompt('Provider (e.g. copilot):')
-  if (!provider) return
-  const accountId = prompt('Account ID (e.g. default):')
-  if (!accountId) return
-  fetch('/dashboard/api/models', {
+  document.getElementById('add-model-id').value = ''
+  document.getElementById('add-model-provider').value = ''
+  document.getElementById('add-model-account').value = ''
+  document.getElementById('add-model-error').style.display = 'none'
+  document.getElementById('add-model-submit').disabled = false
+  document.getElementById('add-model-modal').classList.add('open')
+  document.getElementById('add-model-id').focus()
+}
+
+function closeAddModel() {
+  document.getElementById('add-model-modal').classList.remove('open')
+}
+
+async function submitAddModel(e) {
+  e.preventDefault()
+  const id = document.getElementById('add-model-id').value.trim()
+  const provider = document.getElementById('add-model-provider').value.trim()
+  const accountId = document.getElementById('add-model-account').value.trim()
+  const errEl = document.getElementById('add-model-error')
+  const submitBtn = document.getElementById('add-model-submit')
+
+  errEl.style.display = 'none'
+  submitBtn.disabled = true
+  submitBtn.textContent = 'ADDING…'
+
+  const r = await fetch('/dashboard/api/models', {
     method: 'PUT', headers: headers(),
     body: JSON.stringify({ id, accounts: [{ id: accountId, provider }] })
-  }).then(r => { if (r.ok) loadStatus(); else r.json().then(d => alert(d.error)) })
+  })
+
+  submitBtn.disabled = false
+  submitBtn.textContent = 'ADD →'
+
+  if (r.ok) {
+    closeAddModel()
+    loadStatus()
+  } else {
+    const d = await r.json()
+    errEl.textContent = d.error ?? 'Failed to add model'
+    errEl.style.display = 'block'
+  }
 }
 
 // ── Logout ─────────────────────────────────────────────────────────────────
