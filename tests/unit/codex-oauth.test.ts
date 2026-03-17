@@ -40,7 +40,7 @@ describe('CodexOAuth.startDeviceFlow()', () => {
       verification_uri: 'https://auth.openai.com/activate',
       expires_in: 600,
       interval: 5,
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     const result = await oauth.startDeviceFlow()
     expect(result.deviceCode).toBe('codex-dev-code')
@@ -57,7 +57,7 @@ describe('CodexOAuth.startDeviceFlow()', () => {
     const store = new SqliteCredentialStore(db)
     const oauth = new CodexOAuth(store)
 
-    globalThis.fetch = mock(() => Promise.resolve(new Response('{}', { status: 400 }))) as typeof fetch
+    globalThis.fetch = mock(() => Promise.resolve(new Response('{}', { status: 400 }))) as unknown as typeof fetch
 
     await expect(oauth.startDeviceFlow()).rejects.toThrow(OAuthClientError)
   })
@@ -71,7 +71,7 @@ describe('CodexOAuth.pollOnce()', () => {
 
     globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
       error: 'authorization_pending',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })
     expect(result.status).toBe('pending')
@@ -84,7 +84,7 @@ describe('CodexOAuth.pollOnce()', () => {
 
     globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
       error: 'slow_down',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })
     expect(result.status).toBe('slow_down')
@@ -97,7 +97,7 @@ describe('CodexOAuth.pollOnce()', () => {
 
     globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
       error: 'expired_token',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })
     expect(result.status).toBe('expired')
@@ -112,7 +112,7 @@ describe('CodexOAuth.pollOnce()', () => {
       access_token: 'eyJ_access_token',
       refresh_token: 'eyJ_refresh_token',
       expires_in: 3600,
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1', codeVerifier: 'verifier123' })
     expect(result.status).toBe('success')

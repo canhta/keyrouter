@@ -33,7 +33,7 @@ function mockFetch(responses: Record<string, unknown>, status = 200) {
       status,
       headers: { 'Content-Type': 'application/json' },
     }))
-  }) as typeof fetch
+  }) as unknown as typeof fetch
 }
 
 beforeEach(() => {
@@ -56,7 +56,7 @@ describe('CopilotOAuth.startDeviceFlow()', () => {
       verification_uri: 'https://github.com/login/device',
       expires_in: 900,
       interval: 5,
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     const result = await oauth.startDeviceFlow()
     expect(result.deviceCode).toBe('dev-code-123')
@@ -71,7 +71,7 @@ describe('CopilotOAuth.startDeviceFlow()', () => {
     const store = new SqliteCredentialStore(db)
     const oauth = new CopilotOAuth(store)
 
-    globalThis.fetch = mock(() => Promise.resolve(new Response('{}', { status: 503 }))) as typeof fetch
+    globalThis.fetch = mock(() => Promise.resolve(new Response('{}', { status: 503 }))) as unknown as typeof fetch
 
     await expect(oauth.startDeviceFlow()).rejects.toThrow(OAuthClientError)
   })
@@ -85,7 +85,7 @@ describe('CopilotOAuth.pollOnce()', () => {
 
     globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
       error: 'authorization_pending',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })
     expect(result.status).toBe('pending')
@@ -98,7 +98,7 @@ describe('CopilotOAuth.pollOnce()', () => {
 
     globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
       error: 'slow_down',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })
     expect(result.status).toBe('slow_down')
@@ -111,7 +111,7 @@ describe('CopilotOAuth.pollOnce()', () => {
 
     globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
       error: 'expired_token',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })
     expect(result.status).toBe('expired')
@@ -125,7 +125,7 @@ describe('CopilotOAuth.pollOnce()', () => {
     globalThis.fetch = mock(() => Promise.resolve(new Response(JSON.stringify({
       error: 'access_denied',
       error_description: 'User denied access',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))) as unknown as typeof fetch
 
     await expect(oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })).rejects.toThrow(OAuthClientError)
   })
@@ -151,7 +151,7 @@ describe('CopilotOAuth.pollOnce()', () => {
         token: 'tid=copilot_token',
         expires_at: new Date(Date.now() + 3600_000).toISOString(),
       }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
-    }) as typeof fetch
+    }) as unknown as typeof fetch
 
     const result = await oauth.pollOnce({ deviceCode: 'dev', accountId: 'user1' })
     expect(result.status).toBe('success')

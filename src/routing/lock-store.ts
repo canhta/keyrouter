@@ -14,7 +14,7 @@ import type { Database } from 'bun:sqlite'
 const BACKOFF_MS = [30_000, 60_000, 300_000, 1_800_000]
 
 export function lockDuration(attemptCount: number): number {
-  return BACKOFF_MS[Math.min(attemptCount - 1, BACKOFF_MS.length - 1)]
+  return BACKOFF_MS[Math.min(attemptCount - 1, BACKOFF_MS.length - 1)]!
 }
 
 export class LockStore {

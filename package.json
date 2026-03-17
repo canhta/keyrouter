@@ -27,10 +27,16 @@
   "scripts": {
     "start": "bun run bin/keyrouter.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "bun run typecheck",
+    "pre-push": "bun test"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "simple-git-hooks": "^2.13.1"
   },
   "peerDependencies": {
     "typescript": "^5"

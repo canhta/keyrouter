@@ -98,7 +98,7 @@ function makeDb(): Database {
 
 const testConfig: RouterConfig = {
   models: {
-    'gpt-4o': { upstreamId: 'gpt-4o', accounts: [{ id: 'acc1', providerId: 'openai' }] },
+    'gpt-4o': { upstreamId: 'gpt-4o', accounts: [{ id: 'acc1', provider: 'openai' }] },
   },
 }
 

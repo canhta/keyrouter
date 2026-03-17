@@ -85,6 +85,8 @@ describe('SqliteCredentialStore', () => {
       const mockOAuth: OAuthProvider = {
         fetchToken: mock(async () => refreshedCred),
         refreshToken: mock(async () => refreshedCred),
+        startDeviceFlow: mock(async () => { throw new Error('not implemented') }),
+        pollOnce: mock(async () => { throw new Error('not implemented') }),
       }
 
       store.registerOAuthProvider('copilot', mockOAuth)
@@ -113,6 +115,8 @@ describe('SqliteCredentialStore', () => {
           await new Promise(resolve => setTimeout(resolve, 50))  // Simulate async
           return refreshedCred
         }),
+        startDeviceFlow: mock(async () => { throw new Error('not implemented') }),
+        pollOnce: mock(async () => { throw new Error('not implemented') }),
       }
 
       store.registerOAuthProvider('copilot', mockOAuth)
@@ -141,6 +145,8 @@ describe('SqliteCredentialStore', () => {
       const mockOAuth: OAuthProvider = {
         fetchToken: mock(async () => { throw new OAuthRevokedError('copilot', 'default') }),
         refreshToken: mock(async () => { throw new OAuthRevokedError('copilot', 'default') }),
+        startDeviceFlow: mock(async () => { throw new Error('not implemented') }),
+        pollOnce: mock(async () => { throw new Error('not implemented') }),
       }
 
       store.registerOAuthProvider('copilot', mockOAuth)
@@ -156,6 +162,8 @@ describe('SqliteCredentialStore', () => {
       const mockOAuth: OAuthProvider = {
         fetchToken: mock(async () => { throw new OAuthRevokedError('copilot', 'default') }),
         refreshToken: mock(async () => { throw new OAuthRevokedError('copilot', 'default') }),
+        startDeviceFlow: mock(async () => { throw new Error('not implemented') }),
+        pollOnce: mock(async () => { throw new Error('not implemented') }),
       }
 
       store.registerOAuthProvider('copilot', mockOAuth)

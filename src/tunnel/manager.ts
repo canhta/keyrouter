@@ -77,7 +77,7 @@ export class TunnelManager {
     const decoder = new TextDecoder()
 
     // Read from both stdout and stderr (cloudflared logs to stderr)
-    const streams = [proc.stdout, proc.stderr].filter(Boolean)
+    const streams = [proc.stdout, proc.stderr].filter(Boolean) as ReadableStream<Uint8Array>[]
 
     return new Promise((resolve, reject) => {
       let found = false
