@@ -1,11 +1,33 @@
 {
   "name": "keyrouter",
   "version": "0.1.0",
+  "description": "Self-hosted AI router with OAuth support for GitHub Copilot, OpenAI Codex, and API-key providers",
   "type": "module",
-  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/canhta/keyrouter.git"
+  },
+  "homepage": "https://github.com/canhta/keyrouter#readme",
+  "bugs": {
+    "url": "https://github.com/canhta/keyrouter/issues"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "proxy",
+    "router",
+    "openai",
+    "github-copilot",
+    "codex",
+    "oauth",
+    "openai-compatible",
+    "bun"
+  ],
   "scripts": {
     "start": "bun run bin/keyrouter.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "latest"

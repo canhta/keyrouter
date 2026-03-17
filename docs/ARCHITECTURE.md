@@ -1,7 +1,5 @@
 # keyrouter — Architecture
 
-> Authoritative design document. Supersedes `docs/spikes/architecture_modules.md`.
-> Reflects all decisions from CEO review (2026-03-17) and Engineering review (2026-03-17).
 
 ---
 
@@ -622,17 +620,7 @@ See `TODOS.md` for deferred items.
 
 ---
 
-## Reference Implementations
-
-| What | Where | Used for |
-|------|-------|---------|
-| GitHub Copilot OAuth | `../9router/src/sse/services/auth.js` | Direct TS port |
-| Codex PKCE OAuth | `../CLIProxyAPI/sdk/auth/codex.go` + `codex_device.go` | TS translation |
-| Auth conductor (rotation, cooldown) | `../CLIProxyAPI/sdk/cliproxy/auth/conductor.go` | Pattern reference |
-| SSE streaming | `../9router/open-sse/handlers/chatCore/streamingHandler.js` | Reference |
-| Lock backoff | `../9router` SQLite pattern | Direct port |
-
-### Codex OAuth Constants (confirmed from CLIProxyAPI)
+## Codex OAuth Constants
 - ClientID: `app_EMoamEEZ73f0CkXaXp7hrann`
 - Auth URL: `https://auth.openai.com/oauth/authorize`
 - Token URL: `https://auth.openai.com/oauth/token`
