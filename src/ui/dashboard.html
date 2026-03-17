@@ -403,17 +403,18 @@ function startCountdown(accountId, lockedUntil) {
 // ── Tunnel ─────────────────────────────────────────────────────────────────
 async function toggleTunnel() {
   if (state.tunnel.running) {
-    await fetch('/dashboard/tunnel/stop', { method: 'POST', headers: headers() })
+    await fetch('/dashboard/api/tunnel/stop', { method: 'POST', headers: headers() })
   } else {
     const btn = document.getElementById('expose-btn')
     btn.textContent = 'STARTING…'
     btn.disabled = true
     try {
-      const r = await fetch('/dashboard/tunnel/start', { method: 'POST', headers: headers() })
+      const r = await fetch('/dashboard/api/tunnel/start', { method: 'POST', headers: headers() })
       const d = await r.json()
       if (!r.ok) alert(d.error + (d.instructions ? '\n\n' + d.instructions : ''))
     } finally {
       btn.disabled = false
+      if (!state.tunnel.running) btn.textContent = 'EXPOSE PUBLIC URL'
     }
   }
 }
