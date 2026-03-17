@@ -18,6 +18,8 @@ export function createDashboardEventsHandler(
 
     let unsubscribe: (() => void) | null = null
 
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+
     const stream = new ReadableStream({
       start(controller) {
         const encode = (event: DashboardEvent) => {
@@ -28,9 +30,15 @@ export function createDashboardEventsHandler(
         // Send a heartbeat immediately so the browser knows the connection is live
         controller.enqueue(new TextEncoder().encode(': connected\n\n'))
 
+        // Send periodic pings to keep the connection alive
+        heartbeatTimer = setInterval(() => {
+          try { controller.enqueue(new TextEncoder().encode(': ping\n\n')) } catch { /* stream closed */ }
+        }, 10_000)
+
         unsubscribe = bus.subscribe(encode)
       },
       cancel() {
+        if (heartbeatTimer !== null) clearInterval(heartbeatTimer)
         unsubscribe?.()
       },
     })
