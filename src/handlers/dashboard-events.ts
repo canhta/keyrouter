@@ -1,6 +1,7 @@
 // src/handlers/dashboard-events.ts — GET /dashboard/events (SSE stream to browser)
 
 import type { Context } from 'hono'
+import { streamSSE } from 'hono/streaming'
 import type { DashboardEventBus } from '../events/bus.ts'
 import type { SessionManager } from '../auth/session.ts'
 import type { DashboardEvent } from '../types.ts'
@@ -16,40 +17,43 @@ export function createDashboardEventsHandler(
       return c.json({ error: 'Unauthorized' }, 401)
     }
 
-    let unsubscribe: (() => void) | null = null
+    return streamSSE(c, async (stream) => {
+      // Queue for bridging pub/sub events into the async stream
+      const queue: DashboardEvent[] = []
+      let resolve: (() => void) | null = null
 
-    let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+      const unsubscribe = bus.subscribe((event) => {
+        queue.push(event)
+        resolve?.()
+        resolve = null
+      })
 
-    const stream = new ReadableStream({
-      start(controller) {
-        const encode = (event: DashboardEvent) => {
-          const data = `data: ${JSON.stringify(event)}\n\n`
-          controller.enqueue(new TextEncoder().encode(data))
+      stream.onAbort(() => {
+        unsubscribe()
+      })
+
+      try {
+        while (true) {
+          // Drain queued events
+          while (queue.length > 0) {
+            const event = queue.shift()!
+            await stream.writeSSE({ data: JSON.stringify(event) })
+          }
+
+          // Wait up to 10s for a new event, then send keepalive ping
+          await Promise.race([
+            new Promise<void>((r) => { resolve = r }),
+            new Promise<void>((r) => setTimeout(r, 10_000)),
+          ])
+
+          // If no event arrived, send a keepalive comment
+          if (queue.length === 0) {
+            await stream.write(': ping\n\n')
+          }
         }
-
-        // Send a heartbeat immediately so the browser knows the connection is live
-        controller.enqueue(new TextEncoder().encode(': connected\n\n'))
-
-        // Send periodic pings to keep the connection alive
-        heartbeatTimer = setInterval(() => {
-          try { controller.enqueue(new TextEncoder().encode(': ping\n\n')) } catch { /* stream closed */ }
-        }, 10_000)
-
-        unsubscribe = bus.subscribe(encode)
-      },
-      cancel() {
-        if (heartbeatTimer !== null) clearInterval(heartbeatTimer)
-        unsubscribe?.()
-      },
-    })
-
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no',
-      },
+      } finally {
+        unsubscribe()
+      }
     })
   }
 }
