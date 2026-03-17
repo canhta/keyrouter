@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en" id="html">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KEYROUTER</title>
+  <style>
+    /* ── Brutalism base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #000; --white: #fff; --yellow: #ff0;
+      --green: #00c800; --orange: #ff8c00; --red: #e00;
+      --border: 3px solid var(--black);
+      --shadow: 4px 4px 0 var(--black);
+    }
+    html.dark {
+      --black: #fff; --white: #000;
+      --border: 3px solid #fff;
+      --shadow: 4px 4px 0 #fff;
+      background: #000; color: #fff;
+    }
+    body { font-family: 'Courier New', Courier, monospace; background: var(--white); color: var(--black); font-size: 13px; }
+
+    /* ── Layout ── */
+    #app { display: flex; flex-direction: column; min-height: 100vh; }
+    header { border-bottom: var(--border); padding: 0.5rem 1rem; display: flex; align-items: center; gap: 1rem; }
+    header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: 0.12em; flex: 1; }
+    .status-dot { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--black); background: var(--green); }
+    .status-dot.locked { background: var(--red); }
+    main { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; flex: 1; }
+    .panel { border-right: var(--border); padding: 0.75rem; overflow-y: auto; }
+    .panel:last-child { border-right: none; }
+    .panel-title { font-size: 0.7rem; font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.75rem; border-bottom: 2px solid var(--black); padding-bottom: 0.25rem; }
+    footer { border-top: var(--border); padding: 0.4rem 0.6rem; height: 200px; overflow-y: auto; }
+    .footer-title { font-size: 0.65rem; font-weight: 900; letter-spacing: 0.15em; display: flex; justify-content: space-between; margin-bottom: 0.25rem; }
+
+    /* ── Cards ── */
+    .card { border: var(--border); padding: 0.6rem; margin-bottom: 0.6rem; box-shadow: var(--shadow); }
+    .card-name { font-weight: 900; font-size: 0.85rem; margin-bottom: 0.4rem; }
+    .card-sub { font-size: 0.75rem; opacity: 0.7; }
+
+    /* ── Rate bar ── */
+    .bar-wrap { border: 2px solid var(--black); height: 14px; position: relative; margin: 0.3rem 0; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--black); transition: width 0.4s; }
+    html.dark .bar-fill { background: var(--white); }
+    .bar-label { font-size: 0.7rem; margin-top: 0.1rem; }
+
+    /* ── Status chips ── */
+    .chip { display: inline-block; font-size: 0.65rem; font-weight: 900; padding: 0.1rem 0.35rem; border: 2px solid var(--black); }
+    .chip.healthy { background: var(--green); }
+    .chip.warn    { background: var(--orange); }
+    .chip.locked  { background: var(--red); color: #fff; }
+    .chip.no-cred { background: var(--yellow); }
+
+    /* ── Buttons ── */
+    .btn { border: 2px solid var(--black); background: var(--white); color: var(--black); font-family: inherit; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; cursor: pointer; letter-spacing: 0.05em; }
+    .btn:hover { background: var(--black); color: var(--white); }
+    html.dark .btn:hover { background: #fff; color: #000; }
+    .btn-row { display: flex; gap: 0.4rem; margin-top: 0.4rem; flex-wrap: wrap; }
+    .btn.active { background: var(--black); color: var(--white); }
+    html.dark .btn.active { background: #fff; color: #000; }
+
+    /* ── Log lines ── */
+    .log-line { font-size: 0.72rem; padding: 0.1rem 0; border-bottom: 1px solid rgba(0,0,0,0.1); display: grid; grid-template-columns: 60px 90px 120px 40px auto; gap: 0.4rem; white-space: nowrap; }
+    html.dark .log-line { border-bottom-color: rgba(255,255,255,0.1); }
+    .log-200 { color: var(--green); }
+    .log-429 { color: var(--orange); }
+    .log-5xx { color: var(--red); }
+
+    /* ── Endpoint panel ── */
+    .endpoint-url { font-size: 0.85rem; border: var(--border); padding: 0.4rem 0.6rem; background: rgba(0,0,0,0.04); margin-bottom: 0.6rem; word-break: break-all; }
+    html.dark .endpoint-url { background: rgba(255,255,255,0.04); }
+
+    /* ── Modal ── */
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+    .modal-backdrop.open { display: flex; }
+    .modal { border: 4px solid var(--black); background: var(--white); color: var(--black); padding: 1.5rem; max-width: 480px; width: 90%; box-shadow: 8px 8px 0 var(--black); }
+    .modal h2 { font-size: 1rem; font-weight: 900; letter-spacing: 0.1em; margin-bottom: 1rem; }
+    .modal-code { font-size: 2rem; font-weight: 900; letter-spacing: 0.3em; border: 4px solid var(--black); padding: 0.5rem 1rem; display: inline-block; margin: 0.5rem 0; }
+    .modal p { margin-bottom: 0.5rem; font-size: 0.85rem; }
+    .spinner::after { content: '⣿'; animation: spin 0.5s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Countdown ── */
+    .countdown { font-size: 0.75rem; color: var(--orange); font-weight: 700; }
+    .countdown.expired { color: var(--green); }
+
+    /* ── Usage bars ── */
+    .usage-row { margin-bottom: 0.5rem; }
+    .usage-model { font-weight: 700; font-size: 0.8rem; margin-bottom: 0.2rem; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>KEYROUTER <span id="version" style="font-weight:400;font-size:0.85rem;opacity:0.6"></span></h1>
+    <span id="status-badge"><span class="status-dot" id="status-dot"></span> <span id="status-text">RUNNING</span></span>
+    <button class="btn" id="dark-toggle" onclick="toggleDark()">DARK ☾</button>
+    <button class="btn" onclick="logout()">LOGOUT</button>
+  </header>
+
+  <main>
+    <!-- PROVIDERS -->
+    <div class="panel">
+      <div class="panel-title">PROVIDERS</div>
+      <div id="providers-list">Loading…</div>
+      <div class="btn-row" style="margin-top:0.8rem">
+        <button class="btn" onclick="openAddModel()">+ ADD MODEL</button>
+      </div>
+    </div>
+
+    <!-- USAGE -->
+    <div class="panel">
+      <div class="panel-title">USAGE (24h)</div>
+      <div id="usage-list">Loading…</div>
+      <div style="margin-top:1rem">
+        <div class="panel-title">RATE LIMITS</div>
+        <div id="limits-list"></div>
+      </div>
+    </div>
+
+    <!-- ENDPOINT -->
+    <div class="panel">
+      <div class="panel-title">ENDPOINT</div>
+      <div style="margin-bottom:0.6rem">
+        <div class="card-sub" style="margin-bottom:0.25rem">LOCAL</div>
+        <div class="endpoint-url" id="local-url">http://localhost:3000/v1</div>
+        <button class="btn" onclick="copySnippet()">COPY CONFIG SNIPPET</button>
+      </div>
+
+      <div style="margin-bottom:0.8rem">
+        <div class="card-sub" style="margin-bottom:0.25rem">PUBLIC</div>
+        <div id="tunnel-url" class="endpoint-url" style="opacity:0.4">— not exposed —</div>
+        <div class="btn-row">
+          <button class="btn" id="expose-btn" onclick="toggleTunnel()">EXPOSE PUBLIC URL</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-title">MODELS</div>
+        <div id="models-list">Loading…</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- LIVE LOG -->
+  <footer>
+    <div class="footer-title">
+      <span>LIVE LOG</span>
+      <button class="btn" style="font-size:0.65rem;padding:0.1rem 0.4rem" onclick="clearLog()">CLEAR</button>
+    </div>
+    <div id="log-lines"></div>
+  </footer>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-backdrop" id="auth-modal">
+  <div class="modal">
+    <h2>AUTHORIZE PROVIDER</h2>
+    <p id="auth-step">Starting device flow…</p>
+    <div id="auth-code-section" style="display:none">
+      <p>1. Open: <span id="auth-uri" style="font-weight:700"></span></p>
+      <p>2. Enter code:</p>
+      <div class="modal-code" id="auth-code"></div>
+      <div class="btn-row" style="margin-top:0.8rem">
+        <button class="btn" onclick="copyAuthCode()">COPY CODE</button>
+        <button class="btn" onclick="openAuthUri()">OPEN GITHUB</button>
+        <button class="btn" onclick="cancelAuth()">CANCEL</button>
+      </div>
+      <p style="margin-top:0.8rem"><span class="spinner"></span> Waiting for authorization…</p>
+    </div>
+    <div id="auth-result" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  models: [],
+  accounts: {},
+  usage: [],
+  limits: [],
+  tunnel: { running: false, url: null },
+  auth: { userCode: null, verificationUri: null, pollTimer: null }
+}
+
+// ── CSRF ───────────────────────────────────────────────────────────────────
+function getCsrfToken() {
+  const match = document.cookie.match(/(?:^|;\s*)keyrouter_csrf=([^;]+)/)
+  return match ? match[1] : ''
+}
+
+function headers(extra = {}) {
+  return { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken(), ...extra }
+}
+
+// ── Dark mode ──────────────────────────────────────────────────────────────
+function toggleDark() {
+  const html = document.getElementById('html')
+  html.classList.toggle('dark')
+  localStorage.setItem('dark', html.classList.contains('dark') ? '1' : '0')
+}
+if (localStorage.getItem('dark') === '1') document.getElementById('html').classList.add('dark')
+
+// ── SSE ────────────────────────────────────────────────────────────────────
+const es = new EventSource('/dashboard/events')
+es.onmessage = (e) => {
+  const event = JSON.parse(e.data)
+  if (event.type === 'request') addLogLine(event.data)
+  if (event.type === 'lock') handleLock(event.data)
+  if (event.type === 'unlock') handleUnlock(event.data)
+  if (event.type === 'tunnel') handleTunnelUpdate(event.data)
+  if (event.type === 'config') { state.models = event.data.models; renderModels() }
+}
+es.onerror = () => document.getElementById('status-text').textContent = 'RECONNECTING…'
+es.onopen = () => document.getElementById('status-text').textContent = 'RUNNING'
+
+// ── Data loading ───────────────────────────────────────────────────────────
+async function loadStatus() {
+  const r = await fetch('/dashboard/api/status')
+  const d = await r.json()
+  state.models = d.models
+  state.accounts = d.accounts
+  renderProviders()
+  renderModels()
+}
+
+async function loadUsage() {
+  const r = await fetch('/dashboard/api/usage')
+  const d = await r.json()
+  state.usage = d.byModel
+  state.limits = d.providerLimits
+  renderUsage()
+  renderLimits()
+}
+
+async function loadTunnel() {
+  const r = await fetch('/dashboard/api/tunnel/status')
+  if (r.ok) {
+    const d = await r.json()
+    state.tunnel = d
+    renderTunnel()
+  }
+}
+
+function init() {
+  loadStatus()
+  loadUsage()
+  loadTunnel()
+  updateLocalUrl()
+  setInterval(loadStatus, 10000)
+  setInterval(loadUsage, 15000)
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderProviders() {
+  const container = document.getElementById('providers-list')
+  const seen = new Set()
+  let html = ''
+
+  for (const [accountId, acc] of Object.entries(state.accounts)) {
+    if (seen.has(accountId)) continue
+    seen.add(accountId)
+
+    const chipClass = !acc.hasCredential ? 'no-cred' : acc.locked ? 'locked' : 'healthy'
+    const chipText = !acc.hasCredential ? 'NO AUTH' : acc.locked ? 'LOCKED' : 'OK'
+
+    let tokenLine = ''
+    if (acc.tokenExpiresAt) {
+      const mins = Math.round((acc.tokenExpiresAt - Date.now()) / 60000)
+      if (mins < 0) tokenLine = '<div class="card-sub">token: EXPIRED</div>'
+      else if (mins < 60) tokenLine = `<div class="card-sub countdown">token: ${mins}min</div>`
+      else tokenLine = `<div class="card-sub">token: ${Math.round(mins/60)}h</div>`
+    } else if (acc.hasCredential) {
+      tokenLine = '<div class="card-sub">token: API key</div>'
+    }
+
+    html += `<div class="card">
+      <div class="card-name">${acc.providerId.toUpperCase()} / ${accountId}</div>
+      <span class="chip ${chipClass}">${chipText}</span>
+      ${acc.locked && acc.lockedUntilMs ? `<span class="countdown" data-until="${acc.lockedUntilMs}"></span>` : ''}
+      ${tokenLine}
+      <div class="btn-row">
+        ${!acc.hasCredential || (acc.tokenExpiresAt && acc.tokenExpiresAt < Date.now() + 300000) ?
+          `<button class="btn" onclick="startAuth('${acc.providerId}','${accountId}')">AUTH</button>` : ''}
+      </div>
+    </div>`
+  }
+
+  if (!html) html = '<div style="opacity:0.4;font-size:0.8rem">No providers configured.</div>'
+  container.innerHTML = html
+  startCountdowns()
+}
+
+function renderModels() {
+  const container = document.getElementById('models-list')
+  if (!state.models.length) { container.innerHTML = '<div style="opacity:0.4;font-size:0.8rem">No models.</div>'; return }
+  container.innerHTML = state.models.map(m =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;font-size:0.8rem">
+      <span><b>${m.id}</b></span>
+      <span style="opacity:0.5;font-size:0.7rem">${m.accounts?.map(a => a.providerId).join(', ') ?? ''}</span>
+      <button class="btn" style="font-size:0.65rem;padding:0.1rem 0.3rem" onclick="deleteModel('${m.id}')">✕</button>
+    </div>`
+  ).join('')
+}
+
+function renderUsage() {
+  const container = document.getElementById('usage-list')
+  if (!state.usage.length) { container.innerHTML = '<div style="opacity:0.4">No requests in 24h.</div>'; return }
+  const maxReq = Math.max(...state.usage.map(r => r.requests), 1)
+  container.innerHTML = state.usage.map(r => {
+    const pct = Math.round((r.requests / maxReq) * 100)
+    return `<div class="usage-row">
+      <div class="usage-model">${r.modelId}</div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <div class="bar-label">${r.requests.toLocaleString()} req · ${(r.tokens/1000).toFixed(1)}k tok</div>
+    </div>`
+  }).join('')
+}
+
+function renderLimits() {
+  const container = document.getElementById('limits-list')
+  if (!state.limits.length) { container.innerHTML = '<div style="opacity:0.4;font-size:0.75rem">No rate limit data yet.</div>'; return }
+  container.innerHTML = state.limits.map(l => {
+    const reqPct = l.limitRequests ? Math.round(((l.limitRequests - (l.remainingRequests ?? 0)) / l.limitRequests) * 100) : null
+    const tokPct = l.limitTokens ? Math.round(((l.limitTokens - (l.remainingTokens ?? 0)) / l.limitTokens) * 100) : null
+    return `<div class="card" style="margin-bottom:0.4rem">
+      <div class="card-name" style="font-size:0.75rem">${l.providerId} / ${l.accountId}</div>
+      ${reqPct !== null ? `<div class="bar-wrap"><div class="bar-fill" style="width:${reqPct}%"></div></div>
+        <div class="bar-label">${l.remainingRequests}/${l.limitRequests} req remaining</div>` : ''}
+      ${tokPct !== null ? `<div class="bar-wrap"><div class="bar-fill" style="width:${tokPct}%"></div></div>
+        <div class="bar-label">${((l.remainingTokens??0)/1000).toFixed(1)}k/${((l.limitTokens??0)/1000).toFixed(1)}k tok remaining</div>` : ''}
+    </div>`
+  }).join('')
+}
+
+function renderTunnel() {
+  const urlEl = document.getElementById('tunnel-url')
+  const btn = document.getElementById('expose-btn')
+  if (state.tunnel.running && state.tunnel.url) {
+    urlEl.textContent = state.tunnel.url
+    urlEl.style.opacity = '1'
+    btn.textContent = 'STOP TUNNEL'
+    btn.classList.add('active')
+  } else {
+    urlEl.textContent = '— not exposed —'
+    urlEl.style.opacity = '0.4'
+    btn.textContent = 'EXPOSE PUBLIC URL'
+    btn.classList.remove('active')
+  }
+}
+
+// ── Log ────────────────────────────────────────────────────────────────────
+function addLogLine(data) {
+  const container = document.getElementById('log-lines')
+  const line = document.createElement('div')
+  line.className = `log-line log-${data.status >= 500 ? '5xx' : data.status === 429 ? '429' : '200'}`
+  const time = new Date().toTimeString().slice(0, 8)
+  line.innerHTML = `<span>${time}</span><span>${data.model}</span><span>${data.provider}/${data.account}</span><span>${data.status}</span><span>${data.latencyMs}ms ${data.tokens}tok</span>`
+  container.prepend(line)
+  // Trim to 200 lines
+  while (container.children.length > 200) container.removeChild(container.lastChild)
+}
+
+function handleLock(data) {
+  addLogLine({ model: data.model, provider: '—', account: data.account, status: 429, latencyMs: 0, tokens: 0 })
+  loadStatus()
+  startCountdown(data.account, data.lockedUntil)
+}
+
+function handleUnlock(data) { loadStatus() }
+function handleTunnelUpdate(data) { state.tunnel = { running: !!data.url, url: data.url }; renderTunnel() }
+function clearLog() { document.getElementById('log-lines').innerHTML = '' }
+
+// ── Countdowns ─────────────────────────────────────────────────────────────
+function startCountdowns() {
+  document.querySelectorAll('.countdown[data-until]').forEach(el => {
+    tickCountdown(el)
+    const timer = setInterval(() => {
+      if (!document.contains(el)) { clearInterval(timer); return }
+      tickCountdown(el)
+    }, 1000)
+  })
+}
+
+function tickCountdown(el) {
+  const until = parseInt(el.dataset.until)
+  const remaining = Math.max(0, until - Date.now())
+  if (remaining === 0) {
+    el.textContent = ''
+    el.classList.add('expired')
+    loadStatus()
+    return
+  }
+  el.textContent = ` ${Math.ceil(remaining / 1000)}s`
+}
+
+function startCountdown(accountId, lockedUntil) {
+  // Reload status which will re-render providers with countdown
+  setTimeout(loadStatus, 100)
+}
+
+// ── Tunnel ─────────────────────────────────────────────────────────────────
+async function toggleTunnel() {
+  if (state.tunnel.running) {
+    await fetch('/dashboard/tunnel/stop', { method: 'POST', headers: headers() })
+  } else {
+    const btn = document.getElementById('expose-btn')
+    btn.textContent = 'STARTING…'
+    btn.disabled = true
+    try {
+      const r = await fetch('/dashboard/tunnel/start', { method: 'POST', headers: headers() })
+      const d = await r.json()
+      if (!r.ok) alert(d.error + (d.instructions ? '\n\n' + d.instructions : ''))
+    } finally {
+      btn.disabled = false
+    }
+  }
+}
+
+// ── OAuth device flow ──────────────────────────────────────────────────────
+let currentAuth = null
+
+async function startAuth(providerId, accountId) {
+  const modal = document.getElementById('auth-modal')
+  document.getElementById('auth-step').textContent = 'Starting device flow…'
+  document.getElementById('auth-code-section').style.display = 'none'
+  document.getElementById('auth-result').style.display = 'none'
+  modal.classList.add('open')
+
+  const r = await fetch('/dashboard/api/auth/start', {
+    method: 'POST', headers: headers(),
+    body: JSON.stringify({ provider: providerId, accountId })
+  })
+  const d = await r.json()
+  if (!r.ok) { document.getElementById('auth-step').textContent = '✗ ' + d.error; return }
+
+  currentAuth = { userCode: d.userCode, verificationUri: d.verificationUri, intervalMs: 5000 }
+
+  document.getElementById('auth-code').textContent = d.userCode
+  document.getElementById('auth-uri').textContent = d.verificationUri
+  document.getElementById('auth-code-section').style.display = 'block'
+  document.getElementById('auth-step').textContent = ''
+
+  pollAuth()
+}
+
+async function pollAuth() {
+  if (!currentAuth) return
+  const r = await fetch(`/dashboard/api/auth/status/${currentAuth.userCode}`)
+  const d = await r.json()
+
+  if (d.status === 'success') {
+    document.getElementById('auth-code-section').style.display = 'none'
+    const res = document.getElementById('auth-result')
+    res.style.display = 'block'
+    res.textContent = '✓ AUTHORIZED'
+    res.style.fontWeight = '900'
+    setTimeout(() => closeAuthModal(), 2000)
+    loadStatus()
+    return
+  }
+  if (d.status === 'expired') {
+    document.getElementById('auth-code-section').style.display = 'none'
+    const res = document.getElementById('auth-result')
+    res.style.display = 'block'
+    res.textContent = '✗ CODE EXPIRED — Click AUTH to try again'
+    return
+  }
+  if (d.nextPollMs) currentAuth.intervalMs = d.nextPollMs
+  setTimeout(pollAuth, currentAuth.intervalMs)
+}
+
+function cancelAuth() {
+  if (currentAuth) {
+    fetch(`/dashboard/api/auth/cancel/${currentAuth.userCode}`, { method: 'POST', headers: headers() })
+    currentAuth = null
+  }
+  closeAuthModal()
+}
+
+function closeAuthModal() {
+  document.getElementById('auth-modal').classList.remove('open')
+  currentAuth = null
+}
+
+function copyAuthCode() {
+  if (currentAuth) navigator.clipboard.writeText(currentAuth.userCode).catch(() => {})
+}
+
+function openAuthUri() {
+  if (currentAuth) window.open(currentAuth.verificationUri, '_blank')
+}
+
+// ── Config snippet copy ────────────────────────────────────────────────────
+function copySnippet() {
+  const baseURL = document.getElementById('local-url').textContent.replace('/v1', '')
+  const snippet = JSON.stringify({
+    provider: {
+      keyrouter: {
+        npm: '@ai-sdk/openai-compatible',
+        options: { baseURL: baseURL + '/v1', apiKey: 'local-secret' }
+      }
+    }
+  }, null, 2)
+  navigator.clipboard.writeText(snippet).then(() => {
+    const btn = event.target
+    const orig = btn.textContent
+    btn.textContent = 'COPIED!'
+    setTimeout(() => { btn.textContent = orig }, 1500)
+  }).catch(() => {})
+}
+
+function updateLocalUrl() {
+  document.getElementById('local-url').textContent = `${window.location.origin}/v1`
+}
+
+// ── Delete model ───────────────────────────────────────────────────────────
+async function deleteModel(id) {
+  if (!confirm(`Delete model '${id}'?`)) return
+  const r = await fetch(`/dashboard/api/models/${encodeURIComponent(id)}`, {
+    method: 'DELETE', headers: headers()
+  })
+  if (r.ok) loadStatus()
+  else { const d = await r.json(); alert(d.error) }
+}
+
+function openAddModel() {
+  const id = prompt('Model ID (e.g. gpt-4o):')
+  if (!id) return
+  const provider = prompt('Provider (e.g. copilot):')
+  if (!provider) return
+  const accountId = prompt('Account ID (e.g. default):')
+  if (!accountId) return
+  fetch('/dashboard/api/models', {
+    method: 'PUT', headers: headers(),
+    body: JSON.stringify({ id, accounts: [{ id: accountId, provider }] })
+  }).then(r => { if (r.ok) loadStatus(); else r.json().then(d => alert(d.error)) })
+}
+
+// ── Logout ─────────────────────────────────────────────────────────────────
+async function logout() {
+  await fetch('/dashboard/logout', { method: 'POST', headers: headers() })
+  window.location.href = '/dashboard/login'
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+init()
+</script>
+</body>
+</html>

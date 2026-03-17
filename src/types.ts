@@ -14,11 +14,30 @@ export interface Credential {
   expiresAt?: number   // unix ms; undefined = never expires
 }
 
+export interface DeviceFlowStart {
+  deviceCode: string
+  userCode: string
+  verificationUri: string
+  expiresIn: number   // seconds
+  interval: number    // seconds
+  codeVerifier?: string  // PKCE only (Codex); undefined for Copilot
+}
+
+export type DevicePollResult =
+  | { status: 'pending' }
+  | { status: 'slow_down' }
+  | { status: 'success'; credential: Credential }
+  | { status: 'expired' }
+
 export interface OAuthProvider {
   /** Initiate device/PKCE flow; stores token; returns Credential */
   fetchToken(accountId: string): Promise<Credential>
   /** Refresh using refreshToken; returns updated Credential */
   refreshToken(cred: Credential): Promise<Credential>
+  /** Start device flow — returns codes to show user immediately (non-blocking) */
+  startDeviceFlow(): Promise<DeviceFlowStart>
+  /** Poll once for authorization result. Caller manages interval timing. */
+  pollOnce(opts: { deviceCode: string; accountId: string; codeVerifier?: string }): Promise<DevicePollResult>
 }
 
 export interface CredentialStore {
@@ -126,6 +145,28 @@ export interface UsageRecord {
   totalTokens: number
   durationMs: number
   streamingRequest: boolean
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+export type DashboardEvent =
+  | { type: 'request'; data: { model: string; provider: string; account: string; status: number; latencyMs: number; tokens: number } }
+  | { type: 'lock';    data: { account: string; model: string; lockedUntil: number; attemptCount: number } }
+  | { type: 'unlock';  data: { account: string; model: string } }
+  | { type: 'token';   data: { provider: string; account: string; expiresAt: number } }
+  | { type: 'tunnel';  data: { url: string | null } }
+  | { type: 'config';  data: { models: ModelEntry[] } }
+
+/** In-flight OAuth device flow state tracked by dashboard-api-auth */
+export interface DeviceFlowState {
+  deviceCode: string
+  userCode: string
+  verificationUri: string
+  deadline: number        // unix ms
+  intervalMs: number      // current poll interval in ms (grows on slow_down)
+  providerId: string
+  accountId: string
+  codeVerifier?: string   // PKCE only
 }
 
 // ─── Error Classes ────────────────────────────────────────────────────────────

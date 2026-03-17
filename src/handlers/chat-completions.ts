@@ -38,6 +38,8 @@ import { CredentialNotFoundError, OAuthRevokedError } from '../types.ts'
 import type { SqliteCredentialStore } from '../auth/store.ts'
 import type { ProviderRegistry } from '../providers/index.ts'
 import type { UsageStore } from '../usage/store.ts'
+import type { DashboardEventBus } from '../events/bus.ts'
+import type { Database } from 'bun:sqlite'
 import { createUsageSynthesisStream } from '../translation/stream.ts'
 
 const MAX_BODY_SIZE = 1024 * 1024  // 1 MB
@@ -47,7 +49,9 @@ export function createChatCompletionsHandler(
   routing: RoutingStrategy,
   credentialStore: SqliteCredentialStore,
   providerRegistry: ProviderRegistry,
-  usageStore: UsageStore
+  usageStore: UsageStore,
+  bus?: DashboardEventBus,
+  db?: Database
 ) {
   return async (c: Context) => {
     // ── Body parsing ─────────────────────────────────────────────────────
@@ -184,9 +188,10 @@ export function createChatCompletionsHandler(
             continue
           }
           // Use retried response
+          captureProviderLimits(retryResponse, account.providerId, account.id, db)
           return await buildResponse(c, retryResponse, {
             account, modelId, providerId: account.providerId, startTime,
-            routing, usageStore, body
+            routing, usageStore, body, bus, db
           })
         } catch (err) {
           if (err instanceof OAuthRevokedError) {
@@ -213,10 +218,13 @@ export function createChatCompletionsHandler(
         }
       }
 
+      // Capture rate-limit headers before consuming body (headers available immediately)
+      captureProviderLimits(response, account.providerId, account.id, db)
+
       // ── Success ─────────────────────────────────────────────────────────
       return await buildResponse(c, response, {
         account, modelId, providerId: account.providerId, startTime,
-        routing, usageStore, body
+        routing, usageStore, body, bus, db
       })
     }
 
@@ -241,6 +249,8 @@ interface BuildResponseOpts {
   routing: RoutingStrategy
   usageStore: UsageStore
   body: CanonicalChatRequest
+  bus?: DashboardEventBus
+  db?: Database
 }
 
 async function buildResponse(
@@ -248,7 +258,7 @@ async function buildResponse(
   response: Response,
   opts: BuildResponseOpts
 ): Promise<Response> {
-  const { account, modelId, providerId, startTime, routing, usageStore, body } = opts
+  const { account, modelId, providerId, startTime, routing, usageStore, body, bus } = opts
   const isStreaming = body.stream === true
 
   if (!isStreaming) {
@@ -257,17 +267,20 @@ async function buildResponse(
     routing.onSuccess(account.id, modelId)
 
     const usage = json.usage
+    const totalTokens = usage?.total_tokens ?? 0
     usageStore.record({
       modelId,
       providerId,
       accountId: account.id,
       promptTokens: usage?.prompt_tokens ?? 0,
       completionTokens: usage?.completion_tokens ?? 0,
-      totalTokens: usage?.total_tokens ?? 0,
+      totalTokens,
       durationMs: Date.now() - startTime,
       streamingRequest: false,
       timestamp: Date.now(),
     }).catch((err: Error) => console.warn('[keyrouter] usage record failed:', err))
+
+    bus?.publish({ type: 'request', data: { model: modelId, provider: providerId, account: account.id, status: 200, latencyMs: Date.now() - startTime, tokens: totalTokens } })
 
     return c.json(json)
   }
@@ -287,6 +300,7 @@ async function buildResponse(
       usageStore
         .record({ ...record, timestamp: Date.now() })
         .catch((err: Error) => console.warn('[keyrouter] usage record failed:', err))
+      bus?.publish({ type: 'request', data: { model: modelId, provider: providerId, account: account.id, status: 200, latencyMs: Date.now() - startTime, tokens: record.totalTokens ?? 0 } })
     },
   })
 
@@ -310,4 +324,65 @@ function openAIError(message: string, status: number, type: string) {
       code: String(status),
     },
   }
+}
+
+/** Capture x-ratelimit-* headers from upstream response and upsert into provider_limits. Fire-and-forget. */
+function captureProviderLimits(response: Response, providerId: string, accountId: string, db?: Database): void {
+  if (!db) return
+  const h = response.headers
+
+  const limitReq     = parseHeaderInt(h.get('x-ratelimit-limit-requests'))
+  const remainingReq = parseHeaderInt(h.get('x-ratelimit-remaining-requests'))
+  const limitTok     = parseHeaderInt(h.get('x-ratelimit-limit-tokens'))
+  const remainingTok = parseHeaderInt(h.get('x-ratelimit-remaining-tokens'))
+  const resetReqAt   = parseResetMs(h.get('x-ratelimit-reset-requests'))
+  const resetTokAt   = parseResetMs(h.get('x-ratelimit-reset-tokens'))
+
+  // Skip if no rate-limit headers present at all
+  if (limitReq === null && remainingReq === null && limitTok === null && remainingTok === null) return
+
+  try {
+    db.query(
+      `INSERT INTO provider_limits (provider_id, account_id, limit_req, remaining_req, limit_tok, remaining_tok, reset_req_at, reset_tok_at, captured_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(provider_id, account_id) DO UPDATE SET
+         limit_req = excluded.limit_req,
+         remaining_req = excluded.remaining_req,
+         limit_tok = excluded.limit_tok,
+         remaining_tok = excluded.remaining_tok,
+         reset_req_at = excluded.reset_req_at,
+         reset_tok_at = excluded.reset_tok_at,
+         captured_at = excluded.captured_at`
+    ).run(providerId, accountId, limitReq, remainingReq, limitTok, remainingTok, resetReqAt, resetTokAt, Date.now())
+  } catch (err) {
+    console.warn('[keyrouter] provider_limits write failed:', err)
+  }
+}
+
+function parseHeaderInt(value: string | null): number | null {
+  if (!value) return null
+  const n = parseInt(value, 10)
+  return isNaN(n) ? null : n
+}
+
+/** Parse reset header like "1s", "500ms", or ISO timestamp → unix ms */
+function parseResetMs(value: string | null): number | null {
+  if (!value) return null
+  // ISO timestamp
+  if (value.includes('T') || value.includes('-')) {
+    const t = Date.parse(value)
+    return isNaN(t) ? null : t
+  }
+  // Duration like "1s", "500ms", "1m30s"
+  const now = Date.now()
+  let ms = 0
+  const parts = value.matchAll(/(\d+)(ms|s|m|h)/g)
+  for (const [, n, unit] of parts) {
+    const v = parseInt(n ?? '0', 10)
+    if (unit === 'ms') ms += v
+    else if (unit === 's') ms += v * 1000
+    else if (unit === 'm') ms += v * 60_000
+    else if (unit === 'h') ms += v * 3_600_000
+  }
+  return ms > 0 ? now + ms : null
 }

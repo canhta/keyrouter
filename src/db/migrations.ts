@@ -1,21 +1,21 @@
 // src/db/migrations.ts — SQLite schema setup + versioning
 //
-// Tables:
+// V1 tables:
 //   schema_version  — tracks migration version
-//   credentials     — OAuth tokens + API keys (encrypted at rest not needed; local tool)
+//   credentials     — OAuth tokens + API keys
 //   model_locks     — per-account lock expiry for backoff
 //   usage           — request/response usage records (fire-and-forget writes)
 //
-// ┌──────────────────────────────────────────────────────────────┐
-// │  schema_version   credentials   model_locks   usage          │
-// │       │                │              │          │           │
-// │  version INT      provider_id    account_id  timestamp       │
-// │                   account_id     model_id    model_id        │
-// │                   type           locked_until prompt_tokens  │
-// │                   value          attempt_count ...           │
-// │                   refresh_token                              │
-// │                   expires_at                                 │
-// └──────────────────────────────────────────────────────────────┘
+// V2 tables (dashboard):
+//   provider_limits  — last-seen x-ratelimit-* headers per provider/account
+//   sessions         — admin session tokens (7-day rolling expiry)
+//   login_attempts   — IP-based rate limiting for /dashboard/login
+//   settings         — key/value config (admin_password_hash)
+//
+// ┌────────────────────────────────────────────────────────────────────────┐
+// │  V1: schema_version  credentials  model_locks  usage                  │
+// │  V2: provider_limits  sessions  login_attempts  settings               │
+// └────────────────────────────────────────────────────────────────────────┘
 
 import { Database } from 'bun:sqlite'
 import * as fs from 'node:fs'
@@ -60,6 +60,9 @@ function runMigrations(db: Database): void {
 
   if (currentVersion < 1) {
     migrateV1(db)
+  }
+  if (currentVersion < 2) {
+    migrateV2(db)
   }
 }
 
@@ -115,5 +118,50 @@ function migrateV1(db: Database): void {
   db.run(`
     INSERT INTO schema_version (version) VALUES (1)
     ON CONFLICT DO UPDATE SET version = 1
+  `)
+}
+
+function migrateV2(db: Database): void {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS provider_limits (
+      provider_id    TEXT NOT NULL,
+      account_id     TEXT NOT NULL,
+      limit_req      INTEGER,
+      remaining_req  INTEGER,
+      limit_tok      INTEGER,
+      remaining_tok  INTEGER,
+      reset_req_at   INTEGER,
+      reset_tok_at   INTEGER,
+      captured_at    INTEGER NOT NULL,
+      PRIMARY KEY (provider_id, account_id)
+    )
+  `)
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      token       TEXT PRIMARY KEY,
+      created_at  INTEGER NOT NULL,
+      expires_at  INTEGER NOT NULL
+    )
+  `)
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS login_attempts (
+      ip           TEXT PRIMARY KEY,
+      count        INTEGER NOT NULL DEFAULT 0,
+      locked_until INTEGER
+    )
+  `)
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `)
+
+  db.run(`
+    INSERT INTO schema_version (version) VALUES (2)
+    ON CONFLICT DO UPDATE SET version = 2
   `)
 }

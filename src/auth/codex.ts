@@ -15,6 +15,8 @@ import {
   type Credential,
   type OAuthProvider,
   type CredentialStore,
+  type DeviceFlowStart,
+  type DevicePollResult,
   DeviceCodeExpiredError,
   OAuthClientError,
   OAuthRevokedError,
@@ -48,12 +50,11 @@ interface TokenResponse {
 export class CodexOAuth implements OAuthProvider {
   constructor(private credentialStore: CredentialStore) {}
 
-  async fetchToken(accountId: string): Promise<Credential> {
-    // Step 1: Generate PKCE code verifier + challenge
+  /** Start PKCE device flow — generates verifier, requests device code, returns immediately */
+  async startDeviceFlow(): Promise<DeviceFlowStart> {
     const codeVerifier = generateCodeVerifier()
     const codeChallenge = await generateCodeChallenge(codeVerifier)
 
-    // Step 2: Request device code via authorization endpoint
     const authParams = new URLSearchParams({
       response_type: 'device_code',
       client_id: CLIENT_ID,
@@ -76,67 +77,83 @@ export class CodexOAuth implements OAuthProvider {
     }
 
     const device: DeviceAuthResponse = await authResp.json() as DeviceAuthResponse
+    return {
+      deviceCode: device.device_code,
+      userCode: device.user_code,
+      verificationUri: device.verification_uri_complete ?? device.verification_uri,
+      expiresIn: device.expires_in,
+      interval: device.interval,
+      codeVerifier,  // stored by dashboard-api for subsequent pollOnce calls
+    }
+  }
 
-    // Step 3: Show instructions
+  /** Poll once for authorization result. Caller manages timing/looping. */
+  async pollOnce(opts: { deviceCode: string; accountId: string; codeVerifier?: string }): Promise<DevicePollResult> {
+    const tokenResp = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        device_code: opts.deviceCode,
+        client_id: CLIENT_ID,
+        code_verifier: opts.codeVerifier,
+      }),
+    })
+
+    const token: TokenResponse = await tokenResp.json() as TokenResponse
+
+    if (token.error === 'authorization_pending') return { status: 'pending' }
+    if (token.error === 'slow_down') return { status: 'slow_down' }
+    if (token.error === 'expired_token') return { status: 'expired' }
+    if (token.error === 'access_denied') throw new OAuthClientError('Access denied by user')
+    if (token.error) throw new OAuthClientError(`Auth error: ${token.error} — ${token.error_description}`)
+
+    if (token.access_token) {
+      const cred: Credential = {
+        providerId: 'codex',
+        accountId: opts.accountId,
+        type: 'oauth',
+        value: token.access_token,
+        refreshToken: token.refresh_token,
+        expiresAt: token.expires_in ? Date.now() + token.expires_in * 1000 : undefined,
+      }
+      await this.credentialStore.save(cred)
+      return { status: 'success', credential: cred }
+    }
+
+    return { status: 'pending' }
+  }
+
+  /** CLI entry point — full device flow loop */
+  async fetchToken(accountId: string): Promise<Credential> {
+    const device = await this.startDeviceFlow()
+
     console.log(`
 ┌─────────────────────────────────────────────────────────┐
 │  OpenAI Codex Authentication                            │
 │                                                         │
-│  1. Visit: ${device.verification_uri.padEnd(45)}│
-│  2. Enter code: ${device.user_code.padEnd(41)}│
+│  1. Visit: ${device.verificationUri.padEnd(45)}│
+│  2. Enter code: ${device.userCode.padEnd(41)}│
 │                                                         │
 │  Waiting for authorization...                           │
 └─────────────────────────────────────────────────────────┘
 `)
 
-    // Step 4: Poll for token
-    let pollInterval = device.interval * 1000
-    const deadline = Date.now() + device.expires_in * 1000
+    let intervalMs = device.interval * 1000
+    const deadline = Date.now() + device.expiresIn * 1000
 
     while (Date.now() < deadline) {
-      await sleep(pollInterval)
-
-      const tokenResp = await fetch(TOKEN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-          device_code: device.device_code,
-          client_id: CLIENT_ID,
-          code_verifier: codeVerifier,
-        }),
+      await sleep(intervalMs)
+      const result = await this.pollOnce({
+        deviceCode: device.deviceCode,
+        accountId,
+        codeVerifier: device.codeVerifier,
       })
 
-      const token: TokenResponse = await tokenResp.json() as TokenResponse
-
-      if (token.error === 'authorization_pending') {
-        continue
-      } else if (token.error === 'slow_down') {
-        pollInterval += 5000
-        continue
-      } else if (token.error === 'expired_token') {
-        throw new DeviceCodeExpiredError()
-      } else if (token.error === 'access_denied') {
-        throw new OAuthClientError('Access denied by user')
-      } else if (token.error) {
-        throw new OAuthClientError(`Auth error: ${token.error} — ${token.error_description}`)
-      } else if (token.access_token) {
-        const expiresAt = token.expires_in
-          ? Date.now() + token.expires_in * 1000
-          : undefined
-
-        const cred: Credential = {
-          providerId: 'codex',
-          accountId,
-          type: 'oauth',
-          value: token.access_token,
-          refreshToken: token.refresh_token,
-          expiresAt,
-        }
-
-        await this.credentialStore.save(cred)
-        return cred
-      }
+      if (result.status === 'pending') continue
+      if (result.status === 'slow_down') { intervalMs += 5000; continue }
+      if (result.status === 'expired') throw new DeviceCodeExpiredError()
+      if (result.status === 'success') return result.credential
     }
 
     throw new DeviceCodeExpiredError()

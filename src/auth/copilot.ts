@@ -16,6 +16,8 @@ import {
   type Credential,
   type OAuthProvider,
   type CredentialStore,
+  type DeviceFlowStart,
+  type DevicePollResult,
   DeviceCodeExpiredError,
   OAuthClientError,
   OAuthRevokedError,
@@ -47,84 +49,90 @@ interface TokenResponse {
 export class CopilotOAuth implements OAuthProvider {
   constructor(private credentialStore: CredentialStore) {}
 
-  async fetchToken(accountId: string): Promise<Credential> {
-    // Step 1: Request device code
-    const deviceResp = await fetch(DEVICE_CODE_URL, {
+  /** Start device flow — returns immediately with codes to show user */
+  async startDeviceFlow(): Promise<DeviceFlowStart> {
+    const resp = await fetch(DEVICE_CODE_URL, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: CLIENT_ID, scope: SCOPE }),
     })
 
-    if (!deviceResp.ok) {
-      throw new OAuthClientError(`Device code request failed: ${deviceResp.status}`)
+    if (!resp.ok) {
+      throw new OAuthClientError(`Device code request failed: ${resp.status}`)
     }
 
-    const device: DeviceCodeResponse = await deviceResp.json() as DeviceCodeResponse
+    const device: DeviceCodeResponse = await resp.json() as DeviceCodeResponse
+    return {
+      deviceCode: device.device_code,
+      userCode: device.user_code,
+      verificationUri: device.verification_uri,
+      expiresIn: device.expires_in,
+      interval: device.interval,
+    }
+  }
 
-    // Step 2: Show instructions to user
+  /** Poll once for authorization result. Caller manages timing/looping. */
+  async pollOnce(opts: { deviceCode: string; accountId: string }): Promise<DevicePollResult> {
+    const resp = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: CLIENT_ID,
+        device_code: opts.deviceCode,
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+      }),
+    })
+
+    const token: TokenResponse = await resp.json() as TokenResponse
+
+    if (token.error === 'authorization_pending') return { status: 'pending' }
+    if (token.error === 'slow_down') return { status: 'slow_down' }
+    if (token.error === 'expired_token') return { status: 'expired' }
+    if (token.error) throw new OAuthClientError(`Auth error: ${token.error} — ${token.error_description}`)
+
+    if (token.access_token) {
+      const copilotToken = await this.exchangeForCopilotToken(token.access_token)
+      const cred: Credential = {
+        providerId: 'copilot',
+        accountId: opts.accountId,
+        type: 'oauth',
+        value: copilotToken.token,
+        refreshToken: token.refresh_token,
+        expiresAt: copilotToken.expiresAt,
+      }
+      await this.credentialStore.save(cred)
+      return { status: 'success', credential: cred }
+    }
+
+    return { status: 'pending' }
+  }
+
+  /** CLI entry point — full device flow loop (shows user_code, polls to completion) */
+  async fetchToken(accountId: string): Promise<Credential> {
+    const device = await this.startDeviceFlow()
+
     console.log(`
 ┌─────────────────────────────────────────────────────────┐
 │  GitHub Copilot Authentication                          │
 │                                                         │
-│  1. Visit: ${device.verification_uri.padEnd(45)}│
-│  2. Enter code: ${device.user_code.padEnd(41)}│
+│  1. Visit: ${device.verificationUri.padEnd(45)}│
+│  2. Enter code: ${device.userCode.padEnd(41)}│
 │                                                         │
 │  Waiting for authorization...                           │
 └─────────────────────────────────────────────────────────┘
 `)
 
-    // Step 3: Poll for token
-    let pollInterval = device.interval * 1000
-    const deadline = Date.now() + device.expires_in * 1000
+    let intervalMs = device.interval * 1000
+    const deadline = Date.now() + device.expiresIn * 1000
 
     while (Date.now() < deadline) {
-      await sleep(pollInterval)
+      await sleep(intervalMs)
+      const result = await this.pollOnce({ deviceCode: device.deviceCode, accountId })
 
-      const tokenResp = await fetch(TOKEN_URL, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          client_id: CLIENT_ID,
-          device_code: device.device_code,
-          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-        }),
-      })
-
-      const token: TokenResponse = await tokenResp.json() as TokenResponse
-
-      if (token.error === 'authorization_pending') {
-        continue
-      } else if (token.error === 'slow_down') {
-        pollInterval += 5000
-        continue
-      } else if (token.error === 'expired_token') {
-        throw new DeviceCodeExpiredError()
-      } else if (token.error === 'access_denied') {
-        throw new OAuthClientError('Access denied by user')
-      } else if (token.error) {
-        throw new OAuthClientError(`Auth error: ${token.error} — ${token.error_description}`)
-      } else if (token.access_token) {
-        // Success! Build credential with Copilot API token
-        const copilotToken = await this.exchangeForCopilotToken(token.access_token)
-
-        const cred: Credential = {
-          providerId: 'copilot',
-          accountId,
-          type: 'oauth',
-          value: copilotToken.token,
-          refreshToken: token.refresh_token,
-          expiresAt: copilotToken.expiresAt,
-        }
-
-        await this.credentialStore.save(cred)
-        return cred
-      }
+      if (result.status === 'pending') continue
+      if (result.status === 'slow_down') { intervalMs += 5000; continue }
+      if (result.status === 'expired') throw new DeviceCodeExpiredError()
+      if (result.status === 'success') return result.credential
     }
 
     throw new DeviceCodeExpiredError()

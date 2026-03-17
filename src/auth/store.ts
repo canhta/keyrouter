@@ -150,6 +150,24 @@ export class SqliteCredentialStore implements CredentialStore {
   registerOAuthProvider(providerId: string, provider: OAuthProvider): void {
     this.oauthProviders.set(providerId, provider)
   }
+
+  getOAuthProvider(providerId: string): OAuthProvider | undefined {
+    return this.oauthProviders.get(providerId)
+  }
+
+  /** Peek at stored credential metadata without triggering refresh. */
+  peek(providerId: string, accountId: string): { hasCredential: boolean; expiresAt?: number } {
+    const row = this.db
+      .query<{ expires_at: number | null }, [string, string]>(
+        'SELECT expires_at FROM credentials WHERE provider_id = ? AND account_id = ?'
+      )
+      .get(providerId, accountId)
+
+    return {
+      hasCredential: row !== null,
+      expiresAt: row?.expires_at ?? undefined,
+    }
+  }
 }
 
 function dbRowToCredential(row: DbCredential): Credential {

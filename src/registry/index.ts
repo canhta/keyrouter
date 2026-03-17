@@ -6,11 +6,19 @@
 
 import type { ModelEntry, RouterConfig, AccountEntry } from '../types.ts'
 
+type SwapCallback = (models: ModelEntry[]) => void
+
 export class ModelRegistry {
   private models: Map<string, ModelEntry> = new Map()
+  private swapCallbacks: SwapCallback[] = []
 
   constructor(config: RouterConfig) {
     this.loadModels(config)
+  }
+
+  /** Register a callback invoked after each config hot-reload. Used by DashboardEventBus. */
+  onSwap(fn: SwapCallback): void {
+    this.swapCallbacks.push(fn)
   }
 
   /** Look up a model by client-facing ID. Returns null if not configured. */
@@ -23,11 +31,15 @@ export class ModelRegistry {
     return Array.from(this.models.values())
   }
 
-  /** Atomically replace model config on hot-reload. */
+  /** Atomically replace model config on hot-reload. Notifies onSwap listeners. */
   swap(config: RouterConfig): void {
     const newModels = new Map<string, ModelEntry>()
     this.buildModels(config, newModels)
     this.models = newModels  // atomic reference swap
+    const modelList = Array.from(newModels.values())
+    for (const cb of this.swapCallbacks) {
+      try { cb(modelList) } catch { /* don't let bus errors break hot-reload */ }
+    }
   }
 
   private loadModels(config: RouterConfig): void {

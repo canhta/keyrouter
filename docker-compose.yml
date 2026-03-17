@@ -1,0 +1,11 @@
+services:
+  keyrouter:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      # Persist SQLite DB and router.json between restarts
+      - ./data:/app/data
+    environment:
+      - KEYROUTER_NO_OPEN=1
+    restart: unless-stopped
