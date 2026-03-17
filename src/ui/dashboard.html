@@ -198,9 +198,14 @@ function headers(extra = {}) {
 function toggleDark() {
   const html = document.getElementById('html')
   html.classList.toggle('dark')
-  localStorage.setItem('dark', html.classList.contains('dark') ? '1' : '0')
+  const dark = html.classList.contains('dark')
+  localStorage.setItem('dark', dark ? '1' : '0')
+  document.getElementById('dark-toggle').textContent = dark ? 'LIGHT ☀' : 'DARK ☾'
 }
-if (localStorage.getItem('dark') === '1') document.getElementById('html').classList.add('dark')
+if (localStorage.getItem('dark') === '1') {
+  document.getElementById('html').classList.add('dark')
+  document.getElementById('dark-toggle').textContent = 'LIGHT ☀'
+}
 
 // ── SSE ────────────────────────────────────────────────────────────────────
 const es = new EventSource('/dashboard/events')
