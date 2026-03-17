@@ -26,7 +26,12 @@ import {
   createSetupSubmitHandler,
   createLoginSubmitHandler,
   createLogoutHandler,
+  createMonitorPageHandler,
+  createConfigPageHandler,
+  createAuthPageHandler,
+  createUsagePageHandler,
 } from './handlers/dashboard.ts'
+import { createTestConnectionHandler } from './handlers/dashboard-api-test.ts'
 import { createDashboardEventsHandler } from './handlers/dashboard-events.ts'
 import {
   createDashboardStatusHandler,
@@ -139,6 +144,11 @@ export async function startServer(): Promise<void> {
 
   // Dashboard pages
   app.get('/dashboard', createDashboardHandler(sessionManager))
+  app.get('/dashboard/monitor', createMonitorPageHandler(sessionManager))
+  app.get('/dashboard/config',  createConfigPageHandler(sessionManager))
+  app.get('/dashboard/auth',    createAuthPageHandler(sessionManager))
+  app.get('/dashboard/usage',   createUsagePageHandler(sessionManager))
+  app.post('/dashboard/api/test', createTestConnectionHandler(registry, credentialStore, providerRegistry))
   app.get('/dashboard/setup', createSetupPageHandler())
   app.post('/dashboard/setup', createSetupSubmitHandler(sessionManager))
   app.get('/dashboard/login', createLoginPageHandler())

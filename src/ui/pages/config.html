@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en" id="html" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Keyrouter — Config</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0f14; --surface: #13161f; --surface-2: #1a1e2a; --surface-3: #222637;
+      --border: rgba(255,255,255,0.07); --border-mid: rgba(255,255,255,0.12);
+      --text: #dde1ed; --text-muted: #525870; --text-dim: #363b52;
+      --accent: #f59e0b; --accent-dim: rgba(245,158,11,0.12); --accent-glow: rgba(245,158,11,0.25);
+      --green: #22c55e; --green-dim: rgba(34,197,94,0.12);
+      --orange: #f97316; --orange-dim: rgba(249,115,22,0.12);
+      --red: #ef4444; --red-dim: rgba(239,68,68,0.12);
+      --radius: 6px; --radius-lg: 10px;
+    }
+    html:not(.dark) {
+      --bg: #f0f0eb; --surface: #ffffff; --surface-2: #f7f7f3; --surface-3: #ededea;
+      --border: rgba(0,0,0,0.08); --border-mid: rgba(0,0,0,0.14);
+      --text: #1a1c24; --text-muted: #8892a4; --text-dim: #bcc1cc;
+      --accent: #d97706; --accent-dim: rgba(217,119,6,0.10); --accent-glow: rgba(217,119,6,0.20);
+    }
+    body { font-family: 'JetBrains Mono','Courier New',monospace; background: var(--bg); color: var(--text); font-size: 12.5px; line-height: 1.5; -webkit-font-smoothing: antialiased; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
+    header { background: var(--surface); border-bottom: 1px solid var(--border); height: 48px; display: flex; align-items: center; padding: 0 1rem; flex-shrink: 0; z-index: 10; gap: 0; }
+    .logo { display: flex; align-items: center; gap: 0.45rem; text-decoration: none; color: var(--text); flex-shrink: 0; margin-right: 1rem; }
+    .logo-mark { width: 20px; height: 20px; background: var(--accent); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; color: #000; }
+    .logo-name { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; }
+    nav { display: flex; align-items: stretch; height: 100%; flex: 1; }
+    .nav-link { display: flex; align-items: center; gap: 0.3rem; padding: 0 0.75rem; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.03em; color: var(--text-muted); text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+    .nav-link:hover { color: var(--text); }
+    .nav-link.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .nav-link svg { flex-shrink: 0; opacity: 0.7; }
+    .nav-link.active svg { opacity: 1; }
+    .hdr-actions { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; }
+    .hdr-btn { border: 1px solid var(--border-mid); background: transparent; color: var(--text-muted); font-family: inherit; font-size: 0.68rem; font-weight: 500; padding: 0.28rem 0.6rem; border-radius: var(--radius); cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.3rem; text-decoration: none; }
+    .hdr-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .page { flex: 1; overflow-y: auto; padding: 2rem; max-width: 860px; width: 100%; margin: 0 auto; }
+    .section-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.65rem; }
+    .card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; margin-bottom: 0.75rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--border-mid); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 0.72rem; font-weight: 500; padding: 0.32rem 0.8rem; border-radius: var(--radius); cursor: pointer; letter-spacing: 0.03em; transition: all 0.15s; text-decoration: none; white-space: nowrap; }
+    .btn:hover:not(:disabled) { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+    .btn.primary:hover:not(:disabled) { opacity: 0.88; }
+    .btn.danger:hover:not(:disabled) { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+    .btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+    .btn-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border-mid); border-radius: var(--radius-lg); padding: 1.5rem; max-width: 480px; width: 100%; box-shadow: 0 24px 64px rgba(0,0,0,0.5); animation: modal-in 0.18s ease; }
+    @keyframes modal-in { from { opacity:0; transform:scale(0.96) translateY(8px) } to { opacity:1; transform:scale(1) translateY(0) } }
+    .modal-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+    .field-group { margin-bottom: 0.85rem; }
+    .field-group label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.3rem; }
+    .field-group input { width: 100%; background: var(--surface-2); border: 1px solid var(--border-mid); border-radius: var(--radius); color: var(--text); padding: 0.5rem 0.75rem; font-family: inherit; font-size: 0.8rem; transition: border-color 0.15s; }
+    .field-group input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+    .field-group input::placeholder { color: var(--text-dim); }
+    .field-error { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.25); border-radius: var(--radius); padding: 0.45rem 0.7rem; font-size: 0.75rem; color: var(--red); }
+    .empty { color: var(--text-dim); font-size: 0.75rem; text-align: center; padding: 1.5rem; }
+    #toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--surface); border: 1px solid var(--border-mid); border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.78rem; color: var(--text); box-shadow: 0 8px 32px rgba(0,0,0,0.4); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 200; max-width: 90vw; white-space: nowrap; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    #toast.error { border-color: rgba(239,68,68,0.4); color: var(--red); }
+    #confirm-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 150; align-items: center; justify-content: center; padding: 1rem; }
+    #confirm-backdrop.open { display: flex; }
+    #confirm-box { background: var(--surface); border: 1px solid var(--border-mid); border-radius: var(--radius-lg); padding: 1.5rem; max-width: 360px; width: 100%; box-shadow: 0 24px 64px rgba(0,0,0,0.5); animation: modal-in 0.18s ease; }
+    #confirm-box h3 { font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; }
+    #confirm-box p { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5; }
+    @media (max-width: 639px) { .page { padding: 1rem; } header { padding: 0 0.75rem; } .nav-label { display: none; } .logo-name { display: none; } }
+
+    /* ── Endpoint section ── */
+    .endpoint-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+    .endpoint-row:last-child { margin-bottom: 0; }
+    .endpoint-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); width: 52px; flex-shrink: 0; }
+    .endpoint-url { flex: 1; background: var(--surface-3); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.38rem 0.7rem; font-size: 0.78rem; color: var(--accent); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Wizard ── */
+    .wizard-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1.5rem; overflow: hidden; }
+    .wizard-tabs { display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; }
+    .wizard-tab { display: flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1rem; font-size: 0.7rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }
+    .wizard-tab:hover { color: var(--text); }
+    .wizard-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .wizard-tab svg { opacity: 0.7; }
+    .wizard-tab.active svg { opacity: 1; }
+    .wizard-body { padding: 1.25rem; }
+    .step { margin-bottom: 1.25rem; }
+    .step:last-of-type { margin-bottom: 0; }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #000; font-size: 0.6rem; font-weight: 700; flex-shrink: 0; margin-right: 0.45rem; }
+    .step-title { font-size: 0.75rem; font-weight: 600; color: var(--text); display: flex; align-items: center; margin-bottom: 0.5rem; }
+    .step-desc { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.5rem; line-height: 1.6; }
+    .code-block { font-family: inherit; font-size: 0.72rem; line-height: 1.65; background: var(--surface-3); border: 1px solid var(--border-mid); border-radius: var(--radius); padding: 0.85rem 1rem; white-space: pre; overflow-x: auto; color: var(--accent); user-select: all; margin: 0.4rem 0 0.6rem; }
+    .model-pill { display: inline-block; background: var(--surface-3); border: 1px solid var(--border); border-radius: 99px; padding: 0.1rem 0.5rem; font-size: 0.65rem; color: var(--text-muted); margin: 0.15rem; }
+    .test-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    #test-result { font-size: 0.75rem; font-weight: 600; }
+    #test-result.ok { color: var(--green); }
+    #test-result.fail { color: var(--red); }
+
+    /* ── Models table ── */
+    .models-table { width: 100%; border-collapse: collapse; }
+    .models-table th { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); }
+    .models-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--border); font-size: 0.78rem; vertical-align: middle; }
+    .models-table tr:last-child td { border-bottom: none; }
+    .models-table tr:hover td { background: var(--surface-3); }
+    .model-id-cell { font-weight: 600; color: var(--text); }
+    .model-provider-cell { color: var(--text-muted); font-size: 0.7rem; }
+
+    /* ── Divider ── */
+    .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="/dashboard" class="logo">
+    <span class="logo-mark">K</span>
+    <span class="logo-name">KEYROUTER</span>
+  </a>
+  <nav>
+    <a href="/dashboard" class="nav-link">
+      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 6.5L7.5 1L14 6.5V14H10V9.5H5V14H1V6.5Z" stroke-linejoin="round"/></svg>
+      <span class="nav-label">Overview</span>
+    </a>
+    <a href="/dashboard/monitor" class="nav-link">
+      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="1,10 4,5 7,8.5 10,3 14,7"/></svg>
+      <span class="nav-label">Monitor</span>
+    </a>
+    <a href="/dashboard/config" class="nav-link active">
+      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="4" x2="14" y2="4"/><line x1="1" y1="11" x2="14" y2="11"/><circle cx="5" cy="4" r="2" fill="var(--bg)"/><circle cx="10" cy="11" r="2" fill="var(--bg)"/></svg>
+      <span class="nav-label">Config</span>
+    </a>
+    <a href="/dashboard/auth" class="nav-link">
+      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="6" r="3"/><path d="M8 8.5L13.5 14M11.5 11L13 12.5"/></svg>
+      <span class="nav-label">Auth</span>
+    </a>
+    <a href="/dashboard/usage" class="nav-link">
+      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="9" width="3" height="5"/><rect x="6" y="6" width="3" height="8"/><rect x="11" y="3" width="3" height="11"/></svg>
+      <span class="nav-label">Usage</span>
+    </a>
+  </nav>
+  <div class="hdr-actions">
+    <a href="https://github.com/canhta/keyrouter" target="_blank" class="hdr-btn" title="Star us on GitHub" aria-label="GitHub">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
+    <button class="hdr-btn" id="dark-toggle" onclick="toggleDark()">☀</button>
+    <button class="hdr-btn" onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- ── ENDPOINTS ── -->
+  <div class="section-label">Endpoints</div>
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="endpoint-row">
+      <span class="endpoint-label">Local</span>
+      <span class="endpoint-url" id="local-url">http://localhost:3000/v1</span>
+    </div>
+    <div class="endpoint-row">
+      <span class="endpoint-label">Public</span>
+      <span class="endpoint-url" id="tunnel-url" style="color:var(--text-muted)">— not exposed —</span>
+      <button class="btn" id="tunnel-btn" onclick="toggleTunnel()">
+        <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7.5h13M9 2.5l5 5-5 5"/></svg>
+        Expose Public URL
+      </button>
+    </div>
+  </div>
+
+  <!-- ── CONNECT YOUR TOOLS WIZARD ── -->
+  <div class="section-label">Connect Your Tools</div>
+  <div class="wizard-card">
+    <div class="wizard-tabs">
+      <button class="wizard-tab active" onclick="showTab('opencode')" id="tab-opencode">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="13" height="11" rx="1"/><path d="M4 5.5L6.5 8 4 10.5M8 10.5h3"/></svg>
+        OpenCode
+      </button>
+      <button class="wizard-tab" onclick="showTab('cursor')" id="tab-cursor">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1l9 6.5L8 9l-2 5L3 1z"/></svg>
+        Cursor
+      </button>
+      <button class="wizard-tab" onclick="showTab('codex')" id="tab-codex">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="13" height="11" rx="1"/><path d="M5 6L3 8l2 2M10 6l2 2-2 2M8 5.5l-1 5"/></svg>
+        Codex CLI
+      </button>
+      <button class="wizard-tab" onclick="showTab('continue')" id="tab-continue">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2l9 5.5-9 5.5V2z"/></svg>
+        Continue
+      </button>
+      <button class="wizard-tab" onclick="showTab('custom')" id="tab-custom">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 4l-4 3.5 4 3.5M10 4l4 3.5-4 3.5M8.5 2.5l-2 10"/></svg>
+        Custom
+      </button>
+    </div>
+    <div class="wizard-body">
+
+      <!-- OpenCode -->
+      <div id="content-opencode">
+        <div class="step">
+          <div class="step-title"><span class="step-num">1</span>Add to your opencode.json</div>
+          <div class="step-desc">Paste this into your OpenCode config file. Your endpoint and API key are pre-filled.</div>
+          <div class="code-block" id="snippet-opencode"></div>
+          <button class="btn" onclick="copySnippet('opencode')">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="9" rx="1"/><path d="M2 10V2h8"/></svg>
+            Copy
+          </button>
+        </div>
+        <div class="step">
+          <div class="step-title"><span class="step-num">2</span>Use any of your models</div>
+          <div class="step-desc">Available models on this keyrouter instance:</div>
+          <div id="model-pills-opencode"></div>
+        </div>
+      </div>
+
+      <!-- Cursor -->
+      <div id="content-cursor" style="display:none">
+        <div class="step">
+          <div class="step-title"><span class="step-num">1</span>Open Cursor Settings &rarr; Models</div>
+          <div class="step-desc">Go to <strong>Cursor &rarr; Settings &rarr; Models</strong> &rarr; click <strong>Add Model</strong>.</div>
+        </div>
+        <div class="step">
+          <div class="step-title"><span class="step-num">2</span>Add a custom OpenAI-compatible provider</div>
+          <div class="step-desc">Fill in these values:</div>
+          <div class="code-block" id="snippet-cursor"></div>
+          <button class="btn" onclick="copySnippet('cursor')">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="9" rx="1"/><path d="M2 10V2h8"/></svg>
+            Copy
+          </button>
+        </div>
+        <div class="step">
+          <div class="step-title"><span class="step-num">3</span>Available models</div>
+          <div id="model-pills-cursor"></div>
+        </div>
+      </div>
+
+      <!-- Codex CLI -->
+      <div id="content-codex" style="display:none">
+        <div class="step">
+          <div class="step-title"><span class="step-num">1</span>Set environment variables</div>
+          <div class="step-desc">Add these to your shell profile or .env file:</div>
+          <div class="code-block" id="snippet-codex"></div>
+          <button class="btn" onclick="copySnippet('codex')">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="9" rx="1"/><path d="M2 10V2h8"/></svg>
+            Copy
+          </button>
+        </div>
+        <div class="step">
+          <div class="step-title"><span class="step-num">2</span>Run Codex with your model</div>
+          <div class="code-block" id="snippet-codex-run"></div>
+        </div>
+      </div>
+
+      <!-- Continue -->
+      <div id="content-continue" style="display:none">
+        <div class="step">
+          <div class="step-title"><span class="step-num">1</span>Add to Continue config (~/.continue/config.json)</div>
+          <div class="step-desc">Add this to the <code style="color:var(--accent)">models</code> array in your Continue config:</div>
+          <div class="code-block" id="snippet-continue"></div>
+          <button class="btn" onclick="copySnippet('continue')">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="9" rx="1"/><path d="M2 10V2h8"/></svg>
+            Copy
+          </button>
+        </div>
+        <div class="step">
+          <div class="step-title"><span class="step-num">2</span>Available models</div>
+          <div id="model-pills-continue"></div>
+        </div>
+      </div>
+
+      <!-- Custom -->
+      <div id="content-custom" style="display:none">
+        <div class="step">
+          <div class="step-title"><span class="step-num">1</span>OpenAI-compatible endpoint</div>
+          <div class="step-desc">Any client that supports a custom OpenAI base URL will work:</div>
+          <div class="code-block" id="snippet-custom"></div>
+          <button class="btn" onclick="copySnippet('custom')">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="9" rx="1"/><path d="M2 10V2h8"/></svg>
+            Copy
+          </button>
+        </div>
+        <div class="step">
+          <div class="step-title"><span class="step-num">2</span>Test with curl</div>
+          <div class="code-block" id="snippet-curl"></div>
+        </div>
+      </div>
+
+      <!-- Test connection (shown for all tabs) -->
+      <div class="test-row">
+        <button class="btn primary" id="test-btn" onclick="testConnection()">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7.5h13M9 2.5l5 5-5 5"/></svg>
+          Test Connection
+        </button>
+        <span id="test-result"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── MODELS ── -->
+  <div class="divider"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
+    <div class="section-label" style="margin:0">Models</div>
+    <button class="btn" onclick="openAddModel()">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="5.5" y1="1" x2="5.5" y2="10"/><line x1="1" y1="5.5" x2="10" y2="5.5"/></svg>
+      Add Model
+    </button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div id="models-container">
+      <div class="empty">Loading&hellip;</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ADD MODEL MODAL -->
+<div class="modal-backdrop" id="add-model-modal">
+  <div class="modal">
+    <div class="modal-title">Add Model</div>
+    <form id="add-model-form" onsubmit="submitAddModel(event)">
+      <div class="field-group">
+        <label for="add-model-id">Model ID <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim)">(as clients will see it)</span></label>
+        <input type="text" id="add-model-id" placeholder="e.g. gpt-4o" required autocomplete="off">
+      </div>
+      <div class="field-group">
+        <label for="add-model-provider">Provider</label>
+        <input type="text" id="add-model-provider" placeholder="copilot / openai / openrouter / codex" required autocomplete="off">
+      </div>
+      <div class="field-group">
+        <label for="add-model-account">Account ID</label>
+        <input type="text" id="add-model-account" placeholder="e.g. default" required autocomplete="off">
+      </div>
+      <div id="add-model-error" class="field-error" style="display:none;margin-bottom:0.75rem"></div>
+      <div class="btn-row">
+        <button class="btn primary" type="submit" id="add-model-submit">Add Model</button>
+        <button class="btn" type="button" onclick="closeAddModel()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div id="confirm-backdrop">
+  <div id="confirm-box">
+    <h3>Confirm</h3>
+    <p id="confirm-msg"></p>
+    <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+      <button class="btn" onclick="resolveConfirm(false)" style="padding:0.38rem 0.9rem">Cancel</button>
+      <button class="btn danger" onclick="resolveConfirm(true)" style="padding:0.38rem 0.9rem">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ──
+const state = { models: [], tunnel: { running: false, url: null }, baseUrl: '' }
+let activeTab = 'opencode'
+
+// ── CSRF + headers ──
+function getCsrfToken() { const m = document.cookie.match(/(?:^|;\s*)keyrouter_csrf=([^;]+)/); return m ? m[1] : '' }
+function headers(extra) { return Object.assign({ 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() }, extra || {}) }
+
+// ── Dark mode ──
+function toggleDark() {
+  const dark = document.documentElement.classList.toggle('dark')
+  localStorage.setItem('dark', dark ? '1' : '0')
+  document.getElementById('dark-toggle').textContent = dark ? '☀' : '☾'
+}
+;(function () {
+  const stored = localStorage.getItem('dark')
+  if (stored === '0') {
+    document.documentElement.classList.remove('dark')
+    const b = document.getElementById('dark-toggle')
+    if (b) b.textContent = '☾'
+  }
+})()
+
+// ── Toast ──
+let _tt
+function showToast(msg, isError) {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.className = 'show' + (isError ? ' error' : '')
+  clearTimeout(_tt)
+  _tt = setTimeout(function () { el.className = '' }, 3500)
+}
+
+// ── Confirm ──
+let _cb
+function showConfirm(msg, cb) {
+  document.getElementById('confirm-msg').textContent = msg
+  _cb = cb
+  document.getElementById('confirm-backdrop').classList.add('open')
+}
+function resolveConfirm(ok) {
+  document.getElementById('confirm-backdrop').classList.remove('open')
+  if (ok && _cb) _cb()
+  _cb = null
+}
+
+// ── Logout ──
+async function logout() {
+  await fetch('/dashboard/logout', { method: 'POST', headers: headers() })
+  window.location.href = '/dashboard/login'
+}
+
+// ── Load data ──
+async function init() {
+  updateLocalUrl()
+  const [statusR, tunnelR] = await Promise.all([
+    fetch('/dashboard/api/status'),
+    fetch('/dashboard/api/tunnel'),
+  ])
+  if (statusR.ok) {
+    const d = await statusR.json()
+    state.models = d.models || []
+    renderModels()
+    updateSnippets()
+  }
+  if (tunnelR.ok) {
+    const d = await tunnelR.json()
+    state.tunnel = d
+    renderTunnel()
+  }
+}
+
+function updateLocalUrl() {
+  const url = window.location.origin + '/v1'
+  document.getElementById('local-url').textContent = url
+  state.baseUrl = url
+  updateSnippets()
+}
+
+// ── Wizard tabs ──
+function showTab(tab) {
+  activeTab = tab
+  document.querySelectorAll('.wizard-tab').forEach(function (t) { t.classList.remove('active') })
+  document.querySelectorAll('[id^="content-"]').forEach(function (c) { c.style.display = 'none' })
+  document.getElementById('tab-' + tab).classList.add('active')
+  document.getElementById('content-' + tab).style.display = 'block'
+}
+
+// ── Snippets ──
+function updateSnippets() {
+  const base = window.location.origin
+  const baseUrl = base + '/v1'
+  const modelId = (state.models[0] && state.models[0].id) || 'your-model'
+  const models = state.models.map(function (m) { return m.id })
+
+  // OpenCode
+  document.getElementById('snippet-opencode').textContent = JSON.stringify({
+    provider: { keyrouter: { npm: '@ai-sdk/openai-compatible', options: { baseURL: baseUrl, apiKey: 'your-api-key' } } }
+  }, null, 2)
+
+  // Cursor
+  document.getElementById('snippet-cursor').textContent =
+    'Base URL:  ' + baseUrl + '\nAPI Key:   your-api-key\nModel:     ' + modelId
+
+  // Codex
+  document.getElementById('snippet-codex').textContent =
+    'export OPENAI_BASE_URL="' + baseUrl + '"\nexport OPENAI_API_KEY="your-api-key"'
+  document.getElementById('snippet-codex-run').textContent =
+    'codex --model ' + modelId
+
+  // Continue
+  document.getElementById('snippet-continue').textContent = JSON.stringify({
+    title: 'Keyrouter',
+    provider: 'openai',
+    model: modelId,
+    apiBase: baseUrl,
+    apiKey: 'your-api-key',
+  }, null, 2)
+
+  // Custom
+  document.getElementById('snippet-custom').textContent =
+    'baseURL: ' + baseUrl + '\napiKey:  your-api-key'
+  document.getElementById('snippet-curl').textContent =
+    'curl ' + baseUrl + '/chat/completions \\\n' +
+    '  -H "Authorization: Bearer your-api-key" \\\n' +
+    '  -H "Content-Type: application/json" \\\n' +
+    '  -d \'{"model":"' + modelId + '","messages":[{"role":"user","content":"hi"}],"max_tokens":10}\''
+
+  // Model pills
+  const pillsHtml = models.length
+    ? models.map(function (m) { return '<span class="model-pill">' + m + '</span>' }).join('')
+    : '<span style="color:var(--text-dim);font-size:0.72rem">No models configured</span>'
+  ;['opencode', 'cursor', 'continue'].forEach(function (tab) {
+    const el = document.getElementById('model-pills-' + tab)
+    if (el) el.innerHTML = pillsHtml
+  })
+}
+
+// ── Copy snippet ──
+function copySnippet(tab) {
+  const el = document.getElementById('snippet-' + tab)
+  if (!el) return
+  navigator.clipboard.writeText(el.textContent).then(function () {
+    showToast('Copied to clipboard!')
+  }).catch(function () {
+    showToast('Select the code block and copy manually', true)
+  })
+}
+
+// ── Test connection ──
+async function testConnection() {
+  const btn = document.getElementById('test-btn')
+  const result = document.getElementById('test-result')
+  btn.disabled = true
+  btn.textContent = 'Testing\u2026'
+  result.textContent = ''
+  result.className = ''
+  try {
+    const r = await fetch('/dashboard/api/test', { method: 'POST', headers: headers() })
+    const d = await r.json()
+    if (d.ok) {
+      result.textContent = '\u2713 Connected \u00b7 ' + d.model + ' \u00b7 ' + d.latencyMs + 'ms'
+      result.className = 'ok'
+    } else {
+      result.textContent = '\u2717 ' + d.error
+      result.className = 'fail'
+    }
+  } catch (e) {
+    result.textContent = '\u2717 Request failed'
+    result.className = 'fail'
+  }
+  btn.disabled = false
+  btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7.5h13M9 2.5l5 5-5 5"/></svg> Test Connection'
+}
+
+// ── Render models ──
+function renderModels() {
+  const container = document.getElementById('models-container')
+  if (!state.models.length) {
+    container.innerHTML = '<div class="empty">No models. Add one above.</div>'
+    return
+  }
+  const rows = state.models.map(function (m) {
+    const providers = [...new Set(m.accounts.map(function (a) { return a.providerId }))].join(', ')
+    const accounts = m.accounts.map(function (a) { return a.id }).join(', ')
+    const safeId = m.id.replace(/'/g, "\\'")
+    return '<tr>' +
+      '<td class="model-id-cell">' + m.id + '</td>' +
+      '<td class="model-provider-cell">' + providers + '</td>' +
+      '<td class="model-provider-cell">' + accounts + '</td>' +
+      '<td style="text-align:right"><button class="btn danger" style="font-size:0.65rem;padding:0.2rem 0.5rem" onclick="deleteModel(\'' + safeId + '\')">\u00d7</button></td>' +
+      '</tr>'
+  }).join('')
+  container.innerHTML =
+    '<table class="models-table">' +
+    '<thead><tr><th>Model ID</th><th>Provider</th><th>Accounts</th><th></th></tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '</table>'
+}
+
+// ── Delete model ──
+async function deleteModel(id) {
+  showConfirm("Delete model '" + id + "'?", async function () {
+    const r = await fetch('/dashboard/api/models/' + encodeURIComponent(id), { method: 'DELETE', headers: headers() })
+    if (r.ok) {
+      const s = await fetch('/dashboard/api/status')
+      const d = await s.json()
+      state.models = d.models || []
+      renderModels()
+      updateSnippets()
+    } else {
+      const d = await r.json()
+      showToast(d.error || 'Failed to delete', true)
+    }
+  })
+}
+
+// ── Add model modal ──
+function openAddModel() {
+  document.getElementById('add-model-id').value = ''
+  document.getElementById('add-model-provider').value = ''
+  document.getElementById('add-model-account').value = ''
+  document.getElementById('add-model-error').style.display = 'none'
+  const btn = document.getElementById('add-model-submit')
+  btn.disabled = false
+  btn.textContent = 'Add Model'
+  document.getElementById('add-model-modal').classList.add('open')
+  document.getElementById('add-model-id').focus()
+}
+
+function closeAddModel() {
+  document.getElementById('add-model-modal').classList.remove('open')
+}
+
+async function submitAddModel(e) {
+  e.preventDefault()
+  const id = document.getElementById('add-model-id').value.trim()
+  const provider = document.getElementById('add-model-provider').value.trim()
+  const accountId = document.getElementById('add-model-account').value.trim()
+  const errEl = document.getElementById('add-model-error')
+  const btn = document.getElementById('add-model-submit')
+  errEl.style.display = 'none'
+  btn.disabled = true
+  btn.textContent = 'Adding\u2026'
+  const r = await fetch('/dashboard/api/models', {
+    method: 'PUT',
+    headers: headers(),
+    body: JSON.stringify({ id: id, accounts: [{ id: accountId, provider: provider }] })
+  })
+  btn.disabled = false
+  btn.textContent = 'Add Model'
+  if (r.ok) {
+    closeAddModel()
+    const s = await fetch('/dashboard/api/status')
+    const d = await s.json()
+    state.models = d.models || []
+    renderModels()
+    updateSnippets()
+  } else {
+    const d = await r.json()
+    errEl.textContent = d.error || 'Failed to add model'
+    errEl.style.display = 'block'
+  }
+}
+
+// ── Tunnel ──
+function renderTunnel() {
+  const urlEl = document.getElementById('tunnel-url')
+  const btn = document.getElementById('tunnel-btn')
+  if (state.tunnel.running && state.tunnel.url) {
+    urlEl.textContent = state.tunnel.url
+    urlEl.style.color = 'var(--accent)'
+    btn.classList.add('active')
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="1" x2="14" y2="14"/><line x1="14" y1="1" x2="1" y2="14"/></svg> Stop Tunnel'
+  } else {
+    urlEl.textContent = '\u2014 not exposed \u2014'
+    urlEl.style.color = 'var(--text-muted)'
+    btn.classList.remove('active')
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7.5h13M9 2.5l5 5-5 5"/></svg> Expose Public URL'
+  }
+}
+
+async function toggleTunnel() {
+  const btn = document.getElementById('tunnel-btn')
+  if (state.tunnel.running) {
+    await fetch('/dashboard/api/tunnel', { method: 'DELETE', headers: headers() })
+    state.tunnel = { running: false, url: null }
+    renderTunnel()
+  } else {
+    btn.textContent = 'Starting\u2026'
+    btn.disabled = true
+    try {
+      const r = await fetch('/dashboard/api/tunnel', { method: 'POST', headers: headers() })
+      const d = await r.json()
+      if (r.ok) {
+        state.tunnel = d
+        renderTunnel()
+      } else {
+        showToast((d.error || 'Failed to start tunnel') + (d.instructions ? ' \u2014 ' + d.instructions : ''), true)
+      }
+    } finally {
+      btn.disabled = false
+      if (!state.tunnel.running) renderTunnel()
+    }
+  }
+}
+
+init()
+</script>
+</body>
+</html>

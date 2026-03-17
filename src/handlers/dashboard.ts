@@ -5,10 +5,10 @@ import type { SessionManager } from '../auth/session.ts'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 
-// Serve from dist/ui/ (built by `bun build`), fall back to src/ui/ in dev
-function getDashboardHtml(): string {
-  const distPath = path.join(process.cwd(), 'dist', 'ui', 'dashboard.html')
-  const srcPath = path.join(process.cwd(), 'src', 'ui', 'dashboard.html')
+// Serve from dist/ui/pages/ (built by `bun build`), fall back to src/ui/pages/ in dev
+function getDashboardHtml(page: string): string {
+  const distPath = path.join(process.cwd(), 'dist', 'ui', 'pages', `${page}.html`)
+  const srcPath = path.join(process.cwd(), 'src', 'ui', 'pages', `${page}.html`)
   const filePath = fs.existsSync(distPath) ? distPath : srcPath
   return fs.readFileSync(filePath, 'utf8')
 }
@@ -26,9 +26,43 @@ export function createDashboardHandler(sessionManager: SessionManager) {
       return c.redirect('/dashboard/login')
     }
 
-    const html = getDashboardHtml()
+    const html = getDashboardHtml('home')
     return c.html(html)
   }
+}
+
+function createPageHandler(sessionManager: SessionManager, page: string) {
+  return (c: Context) => {
+    // First run: no password set yet
+    if (!sessionManager.hasPassword()) {
+      return c.redirect('/dashboard/setup')
+    }
+
+    // Not authenticated
+    const token = sessionManager.getSessionToken(c)
+    if (!token || !sessionManager.validateAndRenew(token)) {
+      return c.redirect('/dashboard/login')
+    }
+
+    const html = getDashboardHtml(page)
+    return c.html(html)
+  }
+}
+
+export function createMonitorPageHandler(sessionManager: SessionManager) {
+  return createPageHandler(sessionManager, 'monitor')
+}
+
+export function createConfigPageHandler(sessionManager: SessionManager) {
+  return createPageHandler(sessionManager, 'config')
+}
+
+export function createAuthPageHandler(sessionManager: SessionManager) {
+  return createPageHandler(sessionManager, 'auth')
+}
+
+export function createUsagePageHandler(sessionManager: SessionManager) {
+  return createPageHandler(sessionManager, 'usage')
 }
 
 const AUTH_PAGE_STYLES = `
